@@ -1,0 +1,14 @@
+# BEGIN MANAGED CODEOWNERS
+# Managed by `security/terraform-gitlab-iam` via `__/teams`
+# This file takes precedence over other CODEOWNERS files https://docs.gitlab.com/ee/user/project/codeowners/#code-owners-file
+[CODEOWNERS Management] @sa-infosec
+/CODEOWNERS
+/docs/CODEOWNERS
+/.gitlab/CODEOWNERS
+
+[CICD Management] @sa-infosec
+/.gitlab/pipeline.yml
+
+[Security] @teams/prodsec
+/.gitlab/security.ignore
+# END MANAGED CODEOWNERS
