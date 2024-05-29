@@ -8,7 +8,8 @@
     "build": "webpack --mode=production",
     "prepare": "husky install",
     "preship": "webpack --mode=production",
-    "ship": "cd dist; zip -r ../shipped ./* -x \"*/.*\"; cd ../"
+    "ship": "cd dist; zip -r ../shipped ./* -x \"*/.*\"; cd ../",
+    "lint": "eslint --cache --fix \"src/**/*.{js,jsx,ts,tsx}\""
   },
   "keywords": [],
   "author": "",

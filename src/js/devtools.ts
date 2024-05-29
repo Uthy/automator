@@ -1,3 +1,5 @@
+import type { MessageInterface } from "../types/global.d.js";
+
 chrome.devtools.panels.create(
   chrome.runtime.getManifest().name,
   "",
@@ -6,7 +8,7 @@ chrome.devtools.panels.create(
 
 chrome.runtime.onMessage.addListener(
   (
-    message: any,
+    message: MessageInterface,
     sender: chrome.runtime.MessageSender,
     sendResponse: (response: string) => void,
   ) => {
@@ -14,7 +16,7 @@ chrome.runtime.onMessage.addListener(
       message.sender === "devtoolsPanel" &&
       message.subject === "connectToDevtools"
     ) {
-      sendResponse("Hello from devtools.js")
+      sendResponse("Hello from devtools.js");
     }
 
     return true;

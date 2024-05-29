@@ -1,5 +1,7 @@
+import type { MessageInterface } from "../types/global.d.js";
+
 const backgroundListener = (
-  message: any,
+  message: MessageInterface,
   sender: chrome.runtime.MessageSender,
   sendResponse: (response: string) => void,
 ) => {

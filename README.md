@@ -1,6 +1,6 @@
 # The Toolkit
 
-Quickly spin up and get working on your next Chrome extension!  The Toolkit contains:
+Quickly spin up and get working on your next Chrome extension! The Toolkit contains:
 
 - React.js v18
 - The Wunderkind Design System component library
@@ -31,11 +31,11 @@ Quickly spin up and get working on your next Chrome extension!  The Toolkit cont
 
 ### Other commands
 
-Command | Description
---- | ---
-**npm run build** | Run builds
-**npm run start**| Run in dev mode, includes hot reloading
-**npm run ship**| Build and zip up extension ready for upload to Chrome Extension store
+| Command           | Description                                                           |
+| ----------------- | --------------------------------------------------------------------- |
+| **npm run build** | Run builds                                                            |
+| **npm run start** | Run in dev mode, includes hot reloading                               |
+| **npm run ship**  | Build and zip up extension ready for upload to Chrome Extension store |
 
 ## Development
 
@@ -49,7 +49,7 @@ Chrome describes this as the service worker, and is often used to handle the log
 
 Can access everything background.ts can, plus it can access the Devtools and Debugger APIs.
 
-### devtools-panel.tsx
+### DevtoolsPanel.tsx
 
 This is the UI, or the view, for a Devtools panel.
 
@@ -59,4 +59,8 @@ The content script
 
 ### popup.tsx
 
-The popup view.  It's preconfigured to include instructions for accessing DevTools.
+The popup view. It's preconfigured to include instructions for accessing DevTools.
+
+### ErrorToast.tsx
+
+An component to display error handling. Includes a variable to plug in your own Google Form.
