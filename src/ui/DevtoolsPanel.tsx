@@ -14,7 +14,7 @@ function postToDevtools(): Promise<string> {
         subject: "connectToDevtools",
       })
       .then((response) => {
-        resolve(response);
+        resolve(response as string);
       })
       .catch((e) => {
         reject(e);
@@ -31,7 +31,7 @@ function postToBackground(): Promise<string> {
         tabIds: chrome.devtools.inspectedWindow.tabId,
       })
       .then((response) => {
-        resolve(response);
+        resolve(response as string);
       })
       .catch((e) => {
         reject(e);
@@ -53,14 +53,14 @@ function DevtoolsPanel() {
         setMsg(results);
       })
       .catch((e) => {
-        setShowError(e);
+        setShowError(e as string);
       });
   }
 
   return (
     <div style={{ margin: spacingMap.md }}>
       <Typography mb={spacingMap.md} variant="displayLarge">
-        {extnTitle}
+        {extnTitle}!!!
       </Typography>
 
       <Button
