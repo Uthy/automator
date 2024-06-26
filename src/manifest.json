@@ -1,12 +1,18 @@
 {
-  "name": "The Toolkit",
-  "version": "1.0.0",
+  "name": "Topbar Automator",
+  "version": "0.0.1",
   "manifest_version": 3,
-  "description": "A Chrome Extension starter shell",
+  "description": "Cool description loading..",
   "devtools_page": "devtools.html",
   "action": {
     "default_popup": "popup.html"
   },
+  "permissions": [
+    "activeTab",
+    "tabs",
+    "scripting"
+  ],
+  "host_permissions": ["https://*/*"],
   "icons": {
     "16": "assets/16x16.png",
     "24": "assets/24x24.png",

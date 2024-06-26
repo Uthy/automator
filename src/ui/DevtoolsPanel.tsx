@@ -1,8 +1,11 @@
+/* eslint-disable */
+
 import React, { useState } from "react";
 import ReactDOM from "react-dom/client";
 import { Button, Typography, spacingMap } from "@frontend/wknd-components";
+import { getFixedAndStickySelectors } from "../js/automator";
 import "../css/fonts.scss";
-import ErrorToast from "./ErrorToast";
+import "../css/styles.scss";
 
 const extnTitle: string = chrome.runtime.getManifest().name;
 
@@ -43,6 +46,7 @@ function DevtoolsPanel() {
   const [showError, setShowError] = useState("");
   const [backgroundMessage, setBackgroundMessage] = useState("");
   const [devToolsMessage, setDevtoolsMessage] = useState("");
+  const [styles, setStyles] = useState({} as any);
 
   function handleMessageRequestClick(
     requestMsg: () => Promise<string>,
@@ -64,17 +68,6 @@ function DevtoolsPanel() {
       </Typography>
 
       <Button
-        buttonText="Send Message to Background"
-        mb={spacingMap.md}
-        onClick={() => {
-          handleMessageRequestClick(postToBackground, setBackgroundMessage);
-        }}
-        variant="primary"
-      />
-
-      <Typography variant="bodyCopy">{backgroundMessage}</Typography>
-
-      <Button
         buttonText="Send Message to Devtools"
         mb={spacingMap.md}
         onClick={() => {
@@ -85,8 +78,43 @@ function DevtoolsPanel() {
 
       <Typography variant="bodyCopy">{devToolsMessage}</Typography>
 
-      {showError && (
-        <ErrorToast message={showError} setShowError={setShowError} />
+      <Button
+        buttonText="Get Styles"
+        mb={spacingMap.md}
+        onClick={() => {
+          let tabId = chrome.devtools.inspectedWindow.tabId;
+          chrome.scripting.executeScript(
+            {
+              target: { tabId: tabId },
+              func: getFixedAndStickySelectors,
+            },
+            (results: any) => {
+              setStyles(results[0].result);
+            },
+          );
+        }}
+        variant="primary"
+      />
+
+      {styles.fixedCSS && (
+        <div>
+          <h3>For Fixed Elements</h3>
+          <pre className="wrap">{styles.fixedCSS}</pre>
+        </div>
+      )}
+
+      {styles.stickyCSS && (
+        <div>
+          <h3>For Sticky Elements</h3>
+          <pre className="wrap">{styles.stickyCSS}</pre>
+        </div>
+      )}
+
+      {styles.stickyOverZero && (
+        <div>
+          <h3>For Elements with Sticky Top over 0</h3>
+          <pre className="wrap">{styles.stickyOverZero}</pre>
+        </div>
       )}
     </div>
   );

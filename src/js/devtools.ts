@@ -19,6 +19,7 @@ chrome.runtime.onMessage.addListener(
       sendResponse("Hello from devtools.js");
     }
 
+    console.log({ message });
     return true;
   },
 );
