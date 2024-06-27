@@ -18,6 +18,22 @@ chrome.runtime.onMessage.addListener(
     ) {
       sendResponse("Hello from devtools.js");
     }
+    if (message.subject === "gatherResources") {
+      console.log("Gathering resources...");
+      chrome.devtools.inspectedWindow.getResources((resources) => {
+        const stylesheets = resources.filter(
+          (resource) => resource.type === "stylesheet",
+        );
+        stylesheets.map((resource) => {
+          resource.getContent((content) => 
+             content
+            // run all code that sifts through stylesheets here
+          );
+          return resource;
+        });
+      });
+      sendResponse("Gathering resources...");
+    }
 
     console.log({ message });
     return true;
