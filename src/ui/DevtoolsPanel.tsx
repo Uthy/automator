@@ -42,6 +42,21 @@ function postToBackground(): Promise<string> {
   });
 }
 
+function gatherResources(): Promise<string> {
+  return new Promise((resolve, reject) => {
+    chrome.runtime.sendMessage(
+      {
+        sender: "devtoolsPanel",
+        subject: "gatherResources",
+        tabIds: chrome.devtools.inspectedWindow.tabId,
+      },
+      (response) => {
+        resolve(response as string);
+      },
+    );
+  });
+}
+
 function DevtoolsPanel() {
   const [showError, setShowError] = useState("");
   const [backgroundMessage, setBackgroundMessage] = useState("");
@@ -78,6 +93,14 @@ function DevtoolsPanel() {
 
       <Typography variant="bodyCopy">{devToolsMessage}</Typography>
 
+      <Button
+        buttonText="Gather resources"
+        mb={spacingMap.md}
+        onClick={() => {
+          handleMessageRequestClick(gatherResources, setBackgroundMessage);
+        }}
+        variant="primary"
+      />
       <Button
         buttonText="Get Styles"
         mb={spacingMap.md}
