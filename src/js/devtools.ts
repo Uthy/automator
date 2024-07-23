@@ -22,13 +22,19 @@ chrome.runtime.onMessage.addListener(
       console.log("Gathering resources...");
       chrome.devtools.inspectedWindow.getResources((resources) => {
         const stylesheets = resources.filter(
-          (resource) => resource.type === "stylesheet",
+          (resource: any) => resource.type === "stylesheet",
         );
         stylesheets.map((resource) => {
-          resource.getContent((content) => 
-             content
+          resource.getContent((content) => {
             // run all code that sifts through stylesheets here
-          );
+            console.log({ resource, content });
+            chrome.scripting.executeScript({
+              target: { tabId: message.tabIds },
+              func: insertStylesheet,
+              args: [content],
+            
+            });
+          });
           return resource;
         });
       });
@@ -39,3 +45,10 @@ chrome.runtime.onMessage.addListener(
     return true;
   },
 );
+
+function insertStylesheet(content: string) {
+  const style = document.createElement("style");
+  style.textContent = content;
+  document.head.appendChild(style);
+  // console.log("inserting stylesheet:", content);
+}
