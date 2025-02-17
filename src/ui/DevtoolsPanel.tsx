@@ -78,46 +78,11 @@ function DevtoolsPanel() {
 
   return (
     <div style={{ margin: spacingMap.md }}>
-      <Typography mb={spacingMap.md} variant="displayLarge">
-        {extnTitle}!!!
+      <Typography mb={spacingMap.md} variant="displayMedium">
+        {extnTitle}
       </Typography>
 
-      <Button
-        buttonText="Send Message to Devtools"
-        mb={spacingMap.md}
-        onClick={() => {
-          handleMessageRequestClick(postToDevtools, setDevtoolsMessage);
-        }}
-        variant="primary"
-      />
-
       <Typography variant="bodyCopy">{devToolsMessage}</Typography>
-
-      <Button
-        buttonText="Gather resources"
-        mb={spacingMap.md}
-        onClick={() => {
-          handleMessageRequestClick(gatherResources, setBackgroundMessage);
-        }}
-        variant="primary"
-      />
-      <Button
-        buttonText="Get Styles"
-        mb={spacingMap.md}
-        onClick={() => {
-          let tabId = chrome.devtools.inspectedWindow.tabId;
-          chrome.scripting.executeScript(
-            {
-              target: { tabId: tabId },
-              func: getFixedAndStickySelectors,
-            },
-            (results: any) => {
-              setStyles(results[0].result);
-            },
-          );
-        }}
-        variant="primary"
-      />
 
       {styles.fixedCSS && (
         <div>
@@ -139,6 +104,69 @@ function DevtoolsPanel() {
           <pre className="wrap">{styles.stickyOverZero}</pre>
         </div>
       )}
+      <div id="panel_form">
+        <form>
+          {/* <Button
+            buttonText="Send Message to Devtools"
+            mb={spacingMap.md}
+            onClick={() => {
+              handleMessageRequestClick(postToDevtools, setDevtoolsMessage);
+            }}
+            variant="primary"
+          /> */}
+          <Button
+            buttonText="Gather resources"
+            mb={spacingMap.md}
+            onClick={() => {
+              handleMessageRequestClick(gatherResources, setBackgroundMessage);
+            }}
+            variant="primary"
+          />
+          <Button
+            buttonText="TEST"
+            mb={spacingMap.md}
+            onClick={() => {
+              let tabId = chrome.devtools.inspectedWindow.tabId;
+              chrome.scripting.executeScript(
+                {
+                  target: { tabId: tabId },
+                  func: getFixedAndStickySelectors,
+                },
+                (results: any) => {
+                  setStyles(results[0].result);
+                },
+              );
+              // chrome.devtools.inspectedWindow.eval(
+              //   `(function() { return document.stylesheets })()`,
+              //   (result: any, isException: any) => {
+              //     if (isException) {
+              //       console.log(isException);
+              //     } else {
+              //       console.log(result);
+              //     }
+              //   },
+              // );
+            }}
+          />
+          {/* <Button
+          buttonText="Get Styles"
+          mb={spacingMap.md}
+          onClick={() => {
+            let tabId = chrome.devtools.inspectedWindow.tabId;
+            chrome.scripting.executeScript(
+              {
+                target: { tabId: tabId },
+                func: getFixedAndStickySelectors,
+              },
+              (results: any) => {
+                setStyles(results[0].result);
+              },
+            );
+          }}
+          variant="primary"
+        /> */}
+        </form>
+      </div>
     </div>
   );
 }

@@ -1,4 +1,5 @@
 import type { MessageInterface } from "../types/global.d.js";
+import { getFixedAndStickySelectors } from "./automator.js";
 
 chrome.devtools.panels.create(
   chrome.runtime.getManifest().name,
@@ -24,13 +25,16 @@ chrome.runtime.onMessage.addListener(
         const stylesheets = resources.filter(
           (resource) => resource.type === "stylesheet",
         );
+        console.log({ stylesheets });
         stylesheets.map((resource) => {
-          resource.getContent((content) => 
-             content
+          resource.getContent(
+            (content) => content,
             // run all code that sifts through stylesheets here
           );
           return resource;
         });
+        const distilledSheets = getFixedAndStickySelectors(stylesheets);
+        console.log({ distilledSheets });
       });
       sendResponse("Gathering resources...");
     }

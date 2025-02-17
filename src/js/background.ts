@@ -5,6 +5,7 @@ const backgroundListener = (
   sender: chrome.runtime.MessageSender,
   sendResponse: (response: string) => void,
 ) => {
+  console.log({ message });
   if (
     message.sender === "devtoolsPanel" &&
     message.subject === "connectToBackground"
