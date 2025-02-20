@@ -1,5 +1,13 @@
 import type { MessageInterface } from "../types/global.d.js";
 
+function insertStylesheet(content: string) {
+  const style = document.createElement("style");
+  style.textContent = content;
+  document.head.appendChild(style);
+  // console.log("inserting stylesheet:", content);
+  return null;
+}
+
 chrome.devtools.panels.create(
   chrome.runtime.getManifest().name,
   "",
@@ -12,6 +20,7 @@ chrome.runtime.onMessage.addListener(
     sender: chrome.runtime.MessageSender,
     sendResponse: (response: string) => void,
   ) => {
+    console.log({ message, sender });
     if (
       message.sender === "devtoolsPanel" &&
       message.subject === "connectToDevtools"
@@ -22,18 +31,23 @@ chrome.runtime.onMessage.addListener(
       console.log("Gathering resources...");
       chrome.devtools.inspectedWindow.getResources((resources) => {
         const stylesheets = resources.filter(
-          (resource: any) => resource.type === "stylesheet",
+          (resource: chrome.devtools.inspectedWindow.Resource) =>
+            resource.type === "stylesheet",
         );
         stylesheets.map((resource) => {
           resource.getContent((content) => {
             // run all code that sifts through stylesheets here
             console.log({ resource, content });
-            chrome.scripting.executeScript({
-              target: { tabId: message.tabIds },
-              func: insertStylesheet,
-              args: [content],
-            
-            });
+            chrome.scripting
+              .executeScript({
+                target: { tabId: message.tabIds },
+                func: insertStylesheet,
+                args: [content],
+              })
+              .then((res) => {
+                console.log({ res });
+              })
+              .catch((err) => console.error(err));
           });
           return resource;
         });
@@ -41,14 +55,6 @@ chrome.runtime.onMessage.addListener(
       sendResponse("Gathering resources...");
     }
 
-    console.log({ message });
     return true;
   },
 );
-
-function insertStylesheet(content: string) {
-  const style = document.createElement("style");
-  style.textContent = content;
-  document.head.appendChild(style);
-  // console.log("inserting stylesheet:", content);
-}
