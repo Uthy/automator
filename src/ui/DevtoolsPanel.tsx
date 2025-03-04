@@ -202,11 +202,7 @@ function DevtoolsPanel() {
               func: getFixedAndStickySelectors,
             },
             (results: any) => {
-              var fullString =
-                results[0].result.stickyCSS +
-                results[0].result.fixedCSS +
-                results[0].result.stickyOverZeroCSS;
-              setStyles(parseCSS(fullString));
+              setStyles(parseCSS(results[0].result));
             },
           );
         }}

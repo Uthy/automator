@@ -2,46 +2,44 @@
 
 export const getFixedAndStickySelectors = () => {
   // get all stylesheets
-  var stylesheets = document.styleSheets;
+  const stylesheets = document.styleSheets;
 
   // create empty objects to store selectors for fixed and sticky elements
-  var fixedSelectors = {};
-  var stickySelectors = {};
-  var stickySelectorsOverZero = {};
+  const fixedSelectors = {};
+  const stickySelectors = {};
+  const stickySelectorsOverZero = {};
 
   // loop through all stylesheets
-  for (var i = 0; i < stylesheets.length; i++) {
+  for (let i = 0; i < stylesheets.length; i++) {
     try {
       // check if the stylesheet is from another domain
       if (stylesheets[i].href) {
-        var sheetOrigin = new URL(stylesheets[i].href).origin;
-        var currentOrigin = window.location.origin;
+        const sheetOrigin = new URL(stylesheets[i].href).origin;
+        const currentOrigin = window.location.origin;
         // if the origin of the stylesheet doesn't match the current origin, skip it
         if (sheetOrigin !== currentOrigin) {
           console.error(
-            "stylesheet(s) from " +
-              sheetOrigin +
-              " could not be pulled. Same-origin policy.",
+            `stylesheet(s) from ${sheetOrigin} could not be pulled. Same-origin policy.`,
           );
           continue;
         }
       }
       // get all rules in the stylesheet
-      var rules = stylesheets[i].rules || stylesheets[i].cssRules;
+      const rules = stylesheets[i].rules || stylesheets[i].cssRules;
       // loop through all rules
-      for (var j = 0; j < rules.length; j++) {
+      for (let j = 0; j < rules.length; j++) {
         // check if the rule is a media query rule
         if (rules[j].type === CSSRule.MEDIA_RULE) {
           // get all the rules inside media query
-          var mediaRules = rules[j].cssRules;
+          const mediaRules = rules[j].cssRules;
           // loop through all media query rules
-          for (var k = 0; k < mediaRules.length; k++) {
+          for (let k = 0; k < mediaRules.length; k++) {
             // check if the rule is a style rule
             if (mediaRules[k].type === CSSRule.STYLE_RULE) {
               // get the selector for the rule
-              var selector = mediaRules[k].selectorText;
+              const selector = mediaRules[k].selectorText;
               // get the style for the rule
-              var style = mediaRules[k].style;
+              const style = mediaRules[k].style;
               // check if the element is fixed and has a top value set
               if (
                 style.position === "fixed" &&
@@ -74,11 +72,11 @@ export const getFixedAndStickySelectors = () => {
                 } else {
                   if (!stickySelectorsOverZero[rules[j].conditionText]) {
                     stickySelectorsOverZero[rules[j].conditionText] = [
-                      { selector: selector, top: style.top },
+                      { selector, top: style.top },
                     ];
                   } else {
                     stickySelectorsOverZero[rules[j].conditionText].push({
-                      selector: selector,
+                      selector,
                       top: style.top,
                     });
                   }
@@ -88,9 +86,9 @@ export const getFixedAndStickySelectors = () => {
           }
         } else if (rules[j].type === CSSRule.STYLE_RULE) {
           // get the selector for the rule
-          var selector = rules[j].selectorText;
+          const selector = rules[j].selectorText;
           // get the style for the rule
-          var style = rules[j].style;
+          const style = rules[j].style;
           // check if the element is fixed and has a top value set
           if (
             style.position === "fixed" &&
@@ -125,12 +123,12 @@ export const getFixedAndStickySelectors = () => {
               // add the selector to the stickySelectorsOverZero object
               if (!stickySelectorsOverZero["default"]) {
                 stickySelectorsOverZero["default"] = {
-                  default: [{ top: style.top, selector: selector }],
+                  default: [{ top: style.top, selector }],
                 };
               } else {
                 stickySelectorsOverZero["default"].default.push({
                   top: style.top,
-                  selector: selector,
+                  selector,
                 });
               }
             }
@@ -143,86 +141,56 @@ export const getFixedAndStickySelectors = () => {
     }
   }
 
-  var fixedCSS = "";
-  var stickyCSS = "";
-  var stickyOverZeroCSS = "";
+  let fixedCSS = "";
+  let stickyCSS = "";
+  let stickyOverZeroCSS = "";
+  let tempKey;
 
   //helper function to add the styles to the above variables.
-  function addStickyOverZeroCSS(array, type) {
-    array.forEach(function (item, i) {
+  const addStickyOverZeroCSS = (array, type) => {
+    array.forEach((item) => {
       if (type === "default") {
-        return (stickyOverZeroCSS +=
-          item.selector +
-          " { top: calc(" +
-          "pushAmount + " +
-          item.top +
-          ")}" +
-          "\n");
+        return (stickyOverZeroCSS += `${item.selector} { top: calc('+pushAmount+'px + ${item.top})}\n`);
       } else {
-        return (stickyOverZeroCSS +=
-          "@media " +
-          tempKey +
-          " { " +
-          item.selector +
-          " { top:  calc (pushAmount + " +
-          item.top +
-          ")} " +
-          "}" +
-          "\n");
+        return (stickyOverZeroCSS += `@media ${tempKey} { ${item.selector} { top: calc('+pushAmount+'px + ${item.top})} }\n`);
       }
     });
-  }
+  };
+
   //Elements that need margin-top
-  for (let key in fixedSelectors) {
+  for (const key in fixedSelectors) {
     if (key === "default") {
-      fixedCSS += fixedSelectors[key] + " { margin-top: pushAmount } " + "\n";
+      fixedCSS += `${fixedSelectors[key]} { margin-top: '+pushAmount+'px }\n`;
     } else {
-      fixedCSS +=
-        "@media " +
-        key +
-        " { " +
-        fixedSelectors[key] +
-        " { margin-top: pushAmount } }" +
-        "\n";
+      fixedCSS += `@media ${key} { ${fixedSelectors[key]} { margin-top: '+pushAmount+'px } }\n`;
     }
   }
 
   //Elements with top 0, that need top of pushAmount
-  for (let key in stickySelectors) {
+  for (const key in stickySelectors) {
     if (key === "default") {
-      stickyCSS += stickySelectors[key] + " { top: pushAmount }" + "\n";
-    } else if (key !== "default" && parseFloat(style.top) === 0) {
-      stickyCSS +=
-        "@media " +
-        key +
-        "{ " +
-        stickySelectors[key] +
-        "{ top: pushAmount }}" +
-        "\n";
+      stickyCSS += `${stickySelectors[key]} { top: '+pushAmount+'px }\n`;
+    } else if (key !== "default") {
+      stickyCSS += `@media ${key} { ${stickySelectors[key]} { top: '+pushAmount+'px }}\n`;
     }
   }
 
-  //Elements with top > or < 0, that need top of pushAmount and current top value.
-  for (let key in stickySelectorsOverZero) {
+  //Elements with top > or < 0, that need top of '+pushAmount+'px and current top value.
+  for (const key in stickySelectorsOverZero) {
     if (key === "default") {
-      var regular = stickySelectorsOverZero[key].default;
+      const regular = stickySelectorsOverZero[key].default;
       addStickyOverZeroCSS(regular, key);
     } else {
       //temporarily store the media query rule (key).
-      var tempKey = key;
-      var media = stickySelectorsOverZero[key];
+      tempKey = key;
+      const media = stickySelectorsOverZero[key];
       addStickyOverZeroCSS(media, key);
     }
   }
 
-  // console.log("%c" + 'FIXED' + '\n' + fixedCSS, "color: #030303; background: #e9c46a; padding: 5px;")
-  // console.log("%c" + 'STICKY-TOP=0' + '\n' + stickyCSS, "color: #030303; background: #f4a261; padding: 5px;")
-  // console.log("%c" + 'STICKY-TOP>0' + '\n' + stickyOverZeroCSS, "color: white; background: #264653; padding: 5px;")
+  // combine all the CSS into one string
+  const combinedCSS = fixedCSS + stickyCSS + stickyOverZeroCSS;
 
   // return the combined CSS for fixed and sticky elements
-  return {
-    fixedCSS: fixedCSS,
-    stickyCSS: stickyCSS,
-    stickyOverZeroCSS: stickyOverZeroCSS,
-  };
+  return combinedCSS;
 };

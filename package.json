@@ -15,7 +15,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@frontend/wknd-components": "^37.5.1",
+    "@frontend/wknd-components": "^42.9.0",
     "@types/chrome": "^0.0.263",
     "@types/react": "^18.2.21",
     "@types/react-dom": "^18.2.7",
