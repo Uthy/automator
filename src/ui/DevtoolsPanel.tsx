@@ -1,6 +1,6 @@
 /* eslint-disable */
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import ReactDOM from "react-dom/client";
 import { Button, Typography, spacingMap } from "@frontend/wknd-components";
 import { getFixedAndStickySelectors } from "../js/automator";
@@ -76,6 +76,10 @@ function DevtoolsPanel() {
       });
   }
 
+  useEffect(() => {
+    console.log("Styles updated", styles);
+  }, [styles]);
+
   return (
     <div style={{ margin: spacingMap.md }}>
       <Typography mb={spacingMap.md} variant="displayMedium">
@@ -114,14 +118,14 @@ function DevtoolsPanel() {
             }}
             variant="primary"
           /> */}
-          <Button
+          {/* <Button
             buttonText="Gather resources"
             mb={spacingMap.md}
             onClick={() => {
               handleMessageRequestClick(gatherResources, setBackgroundMessage);
             }}
             variant="primary"
-          />
+          /> */}
           <Button
             buttonText="TEST"
             mb={spacingMap.md}
@@ -167,6 +171,7 @@ function DevtoolsPanel() {
         /> */}
         </form>
       </div>
+      {!!styles && <Typography variant="bodyCopy">Styles found</Typography>}
     </div>
   );
 }
