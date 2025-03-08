@@ -4,6 +4,7 @@ import React, { useEffect, useState } from "react";
 import ReactDOM from "react-dom/client";
 import { Button, Typography, spacingMap } from "@frontend/wknd-components";
 import { getFixedAndStickySelectors } from "../js/automator";
+import { injectAutomTestEle } from "../js/injectElem";
 import "../css/fonts.scss";
 import "../css/styles.scss";
 
@@ -203,12 +204,89 @@ function DevtoolsPanel() {
               func: getFixedAndStickySelectors,
             },
             (results: any) => {
-              setStyles(parseCSS(results[0].result));
+              const resultText = results[0].result;
+              setStyles(parseCSS(resultText));
+              const textarea = document.getElementById(
+                "styleTextarea",
+              ) as HTMLTextAreaElement;
+              textarea.value = resultText;
             },
           );
         }}
         variant="primary"
       />
+      <Button
+        buttonText={"Clear Styles"}
+        mb={spacingMap.md}
+        onClick={() => {
+          const textarea = document.getElementById(
+            "styleTextarea",
+          ) as HTMLTextAreaElement;
+          textarea.value = "";
+        }}
+        variant="primary"
+      />
+
+      <textarea
+        id="styleTextarea"
+        placeholder="Enter text"
+        style={{ marginBottom: spacingMap.md, width: "100%", height: "150px" }}
+      />
+
+      <Button
+        buttonText={"Full Inject"}
+        mb={spacingMap.md}
+        onClick={() => {
+          const textarea = document.getElementById(
+            "styleTextarea",
+          ) as HTMLTextAreaElement;
+          const styleContent = textarea.value;
+
+          chrome.tabs
+            .query({ active: true, lastFocusedWindow: true })
+            .then((response) => {
+              let tabId = response[0].id;
+
+              return chrome.scripting
+                .executeScript({
+                  target: { tabId: tabId },
+                  func: injectAutomTestEle,
+                  args: [styleContent],
+                })
+                .catch((e) => setShowError(e.message));
+            });
+        }}
+        variant="primary"
+      />
+
+      <Button
+        buttonText={"Inject Stylesheet"}
+        mb={spacingMap.md}
+        onClick={() => {
+          const textarea = document.getElementById(
+            "styleTextarea",
+          ) as HTMLTextAreaElement;
+          const styleContent = textarea.value;
+
+          chrome.tabs
+            .query({ active: true, lastFocusedWindow: true })
+            .then((response) => {
+              let tabId = response[0].id;
+
+              return chrome.scripting
+                .executeScript({
+                  target: { tabId: tabId },
+                  func: injectAutomTestEle,
+                  args: [styleContent],
+                })
+                .catch((e) => setShowError(e.message));
+            });
+        }}
+        variant="primary"
+      />
+
+      <Typography variant="bodyCopy">{devToolsMessage}</Typography>
+      <Typography variant="bodyCopy">{backgroundMessage}</Typography>
     </div>
   );
 }
