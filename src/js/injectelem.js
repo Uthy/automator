@@ -19,6 +19,11 @@ export const injectAutomTestEle = (styleContent) => {
       height: 40px;
       width: 100vw;
     }
+    .bx-automator-test p {
+      font-size: 16px;
+      color: black;
+      font-weight: bold;
+    }
   `;
 
   // Extract the numeric height value from automBaseStyles
