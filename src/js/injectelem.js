@@ -1,6 +1,10 @@
 /* eslint-disable */
 
-export const injectAutomTestEle = (styleContent) => {
+export const injectAutomTestEle = (
+  styleContent,
+  addClone,
+  addResizeListener,
+) => {
   const automBaseStyles = `
     .bx-automator-test .bx-slab {
       position: fixed;
@@ -24,19 +28,73 @@ export const injectAutomTestEle = (styleContent) => {
       color: black;
       font-weight: bold;
     }
+    .bx-automator-test-clone p {
+        visibility: hidden;
+        margin: 0;
+        padding: 0;
+    }
+    @media (max-width: 768px) {
+      .bx-automator-test .bx-slab, .bx-automator-test-clone .bx-slab {
+        height: 50px;
+      }
+    }
   `;
 
-  // Extract the numeric height value from automBaseStyles
-  const heightMatch = automBaseStyles.match(/height:\s*(\d+(\.\d+)?)/);
-  const heightValue = heightMatch ? parseFloat(heightMatch[1]) : 40;
+  // Get the current height of the .bx-automator-test .bx-slab
+  function getCurrentHeight() {
+    const slabElement = document.querySelector(".bx-automator-test .bx-slab");
+    if (slabElement) {
+      const computedStyle = getComputedStyle(slabElement);
+      return parseFloat(computedStyle.height);
+    }
+    return 40; // Default height
+  }
 
-  // Replace '+pushAmount+' with the height value in styleContent, including the enclosing '
+  const heightValue = getCurrentHeight();
+
+  // Replace '+pushAmount+' in styleContent with the height value, including the enclosing '
   const updatedStyleContent =
     typeof styleContent === "string"
-      ? styleContent.replace(/\'\+pushAmount\+\'/g, parseFloat(heightValue))
+      ? styleContent.replace(/'\+pushAmount\+'/g, heightValue.toString())
       : "";
 
-  // Check if the element already exists
+  // Function to create and inject the element
+  function createAndInjectElement(className, styleContent, injectStyles) {
+    // Create the automator test element
+    const div = document.createElement("div");
+    div.classList.add("bxc", className);
+
+    // Create the slab div
+    const childDiv = document.createElement("div");
+    childDiv.classList.add("bx-slab");
+
+    // Create the text element and center it
+    const textElement = document.createElement("p");
+    textElement.textContent = "Automator testing element";
+    textElement.style.textAlign = "center";
+    childDiv.appendChild(textElement); // Append the text element to the child div
+
+    div.appendChild(childDiv);
+
+    if (injectStyles) {
+      // Create the base stylesheet and set its content
+      const baseStyle = document.createElement("style");
+      baseStyle.classList.add("bx-automator-test-base-style");
+      baseStyle.textContent = automBaseStyles;
+      div.appendChild(baseStyle);
+
+      // Create the bx-automator-test stylesheet
+      const style = document.createElement("style");
+      style.classList.add("bx-automator-test-style");
+      style.textContent = styleContent;
+      div.appendChild(style);
+    }
+
+    // Prepend the topbar to the body
+    document.body.prepend(div);
+  }
+
+  // Check if the topbar already exists
   const existingDiv = document.querySelector(".bx-automator-test");
 
   if (existingDiv) {
@@ -53,42 +111,45 @@ export const injectAutomTestEle = (styleContent) => {
       styleElement.textContent = updatedStyleContent;
     }
   } else {
-    // Create the automator test element
-    const div = document.createElement("div");
-    div.classList.add("bxc", "bx-automator-test");
-    const divClone = document.createElement("div");
-    divClone.classList.add("bxc", "bx-automator-test-clone");
-
-    // Create the slab div element
-    const childDiv = document.createElement("div");
-    childDiv.classList.add("bx-slab");
-    const childDivClone = document.createElement("div");
-    childDivClone.classList.add("bx-slab");
-
-    // Create the text element and center it
-    const textElement = document.createElement("p");
-    textElement.textContent = "Automator testing element";
-    textElement.style.textAlign = "center";
-    childDiv.appendChild(textElement); // Append the text element to the child div
-
-    div.appendChild(childDiv);
-    divClone.appendChild(childDivClone);
-
-    // Create the base stylesheet and set its content
-    const style = document.createElement("style");
-    style.classList.add("bx-automator-test-base-style");
-    style.textContent = automBaseStyles;
-    div.appendChild(style);
-
-    // Create the bx-automator-test stylesheet
-    const style2 = document.createElement("style");
-    style2.classList.add("bx-automator-test-style");
-    style2.textContent = updatedStyleContent;
-    div.appendChild(style2);
-    divClone.appendChild(style2.cloneNode(true));
-
-    // Prepend the div to the body
-    document.body.prepend(div);
-    document.body.prepend(divClone);
+    // Create and inject the original element
+    createAndInjectElement("bx-automator-test", updatedStyleContent, true);
   }
+
+  // Create and inject the clone element if addClone is true and clone does not already exist
+  const existingClone = document.querySelector(".bx-automator-test-clone");
+  if (addClone) {
+    if (!existingClone) {
+      createAndInjectElement(
+        "bx-automator-test-clone",
+        updatedStyleContent,
+        false,
+      );
+    }
+  } else if (existingClone) {
+    // Remove the clone element if it exists and addClone is false
+    existingClone.remove();
+  }
+
+  /* Add resize event listener to invoke injectAutomTestEle if addResizeListener is true
+  //Not working scoping issue from running getting height to update the style
+  if (addResizeListener) {
+    // Remove any existing resize.bx-automator event listener
+    window.removeEventListener('resize.automator', handleResize);
+
+    // Define the resize event handler
+    function handleResize() {
+      const slabEle = document.querySelector('.bx-automator-test .bx-slab');
+      const slabHeightValue = 40;
+      if (slabEle) {
+        const computedSlabStyle = getComputedStyle(slabEle);
+        slabHeightValue = parseFloat(computedSlabStyle.height);
+      }
+      const updatedStyleContent = typeof styleContent === 'string' ? styleContent.replace(/'\+pushAmount\+'/g, slabHeightValue.toString()) : '';
+      const existingDiv = document.querySelector('.bx-automator-test');
+      injectAutomTestEle(updatedStyleContent, existingDiv ? false : addClone, addResizeListener);
+    }
+
+    // Add the new resize event listener
+    window.addEventListener('resize.automator', handleResize);
+  }*/
 };
