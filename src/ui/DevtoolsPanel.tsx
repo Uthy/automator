@@ -319,6 +319,10 @@ function DevtoolsPanel() {
             });
         }}
         variant="primary"
+        style={{
+          backgroundColor:
+            buttonText === "Injected - refresh styles" ? "green" : "",
+        }}
       />
 
       <Typography variant="bodyCopy">{devToolsMessage}</Typography>
