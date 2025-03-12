@@ -332,94 +332,96 @@ function DevtoolsPanel() {
       />
 
       {isExpanded && (
-        <div
-          style={{
-            border: "2px solid blue",
-            padding: "10px",
-            marginBottom: spacingMap.md,
-          }}
-        >
+        <>
           <Typography
             mb={spacingMap.md}
-            style={{ marginBottom: spacingMap.md, fontSize: "20px" }}
+            style={{ fontSize: "20px" }}
             variant="headline"
           >
             Advanced Settings
           </Typography>
-          <Typography
-            mb={spacingMap.md}
-            style={{ marginBottom: "10px", fontSize: "18px" }}
-            variant="bodyCopy"
-          >
-            Anchor Placement Adjustment
-          </Typography>
-          <Typography
-            mb={spacingMap.md}
-            style={{ marginBottom: "5px", fontSize: "14px" }}
-            variant="bodyCopy"
-          >
-            Alternate selector for top bar placement
-          </Typography>
-          <input
-            type="text"
-            className="topBarPlacementSelector"
-            placeholder="Placement Selector ( .header )"
+          <div
             style={{
+              border: "2px solid blue",
+              padding: "10px",
               marginBottom: spacingMap.md,
-              marginRight: "10px",
-              width: "200px",
-              height: "26px",
-            }}
-          />
-          <select
-            className="placementDropdown"
-            style={{
-              marginBottom: spacingMap.md,
-              marginRight: "20px",
-              width: "100px",
-              height: "32px",
             }}
           >
-            <option value="prepend">Prepend</option>
-            <option value="append">Append</option>
-            <option value="before">Before</option>
-            <option value="after">After</option>
-          </select>
-          <Button
-            buttonText={"Update Anchor Placement"}
-            mb={spacingMap.md}
-            onClick={() => {
-              const selector = (
-                document.querySelector(
-                  ".topBarPlacementSelector",
-                ) as HTMLInputElement
-              ).value;
-              const placement = (
-                document.querySelector(
-                  ".placementDropdown",
-                ) as HTMLSelectElement
-              ).value;
+            <Typography
+              mb={spacingMap.md}
+              style={{ marginBottom: "10px", fontSize: "18px" }}
+              variant="bodyCopy"
+            >
+              Anchor Placement Adjustment
+            </Typography>
+            <Typography
+              mb={spacingMap.md}
+              style={{ marginBottom: "5px", fontSize: "14px" }}
+              variant="bodyCopy"
+            >
+              Alternate selector for top bar placement
+            </Typography>
+            <input
+              type="text"
+              className="topBarPlacementSelector"
+              placeholder="Placement Selector ( .header )"
+              style={{
+                marginBottom: spacingMap.md,
+                marginRight: "10px",
+                width: "200px",
+                height: "26px",
+              }}
+            />
+            <select
+              className="placementDropdown"
+              style={{
+                marginBottom: spacingMap.md,
+                marginRight: "20px",
+                width: "100px",
+                height: "32px",
+              }}
+            >
+              <option value="prepend">Prepend</option>
+              <option value="append">Append</option>
+              <option value="before">Before</option>
+              <option value="after">After</option>
+            </select>
+            <Button
+              buttonText={"Update Anchor Placement"}
+              mb={spacingMap.md}
+              onClick={() => {
+                const selector = (
+                  document.querySelector(
+                    ".topBarPlacementSelector",
+                  ) as HTMLInputElement
+                ).value;
+                const placement = (
+                  document.querySelector(
+                    ".placementDropdown",
+                  ) as HTMLSelectElement
+                ).value;
 
-              chrome.tabs
-                .query({ active: true, lastFocusedWindow: true })
-                .then((response) => {
-                  let tabId = response[0].id;
+                chrome.tabs
+                  .query({ active: true, lastFocusedWindow: true })
+                  .then((response) => {
+                    let tabId = response[0].id;
 
-                  return chrome.scripting
-                    .executeScript({
-                      target: { tabId: tabId },
-                      func: updateAnchorPlacement,
-                      args: [selector, placement],
-                    })
-                    .then(() => {
-                      setShowError("");
-                    })
-                    .catch((e) => setShowError(e.message));
-                });
-            }}
-            variant="primary"
-          />
-        </div>
+                    return chrome.scripting
+                      .executeScript({
+                        target: { tabId: tabId },
+                        func: updateAnchorPlacement,
+                        args: [selector, placement],
+                      })
+                      .then(() => {
+                        setShowError("");
+                      })
+                      .catch((e) => setShowError(e.message));
+                  });
+              }}
+              variant="primary"
+            />
+          </div>
+        </>
       )}
 
       <Typography variant="bodyCopy">{devToolsMessage}</Typography>
