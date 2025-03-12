@@ -5,6 +5,7 @@ import ReactDOM from "react-dom/client";
 import { Button, Typography, spacingMap } from "@frontend/wknd-components";
 import { getFixedAndStickySelectors } from "../js/automator";
 import { injectAutomTestEle } from "../js/injectElem";
+import { updateAnchorPlacement } from "../js/anchorAdjust";
 import "../css/fonts.scss";
 import "../css/styles.scss";
 
@@ -172,19 +173,7 @@ function DevtoolsPanel() {
   const [addClone, setAddClone] = useState(true); // set Default checked
   const [addResizeListener, setAddResizeListener] = useState(false);
   const [buttonText, setButtonText] = useState("Inject Test Topbar");
-
-  function handleMessageRequestClick(
-    requestMsg: () => Promise<string>,
-    setMsg: React.Dispatch<React.SetStateAction<string>>,
-  ) {
-    requestMsg()
-      .then((results) => {
-        setMsg(results);
-      })
-      .catch((e) => {
-        setShowError(e as string);
-      });
-  }
+  const [isExpanded, setIsExpanded] = useState(false);
 
   useEffect(() => {
     console.log("Styles updated", styles);
@@ -319,7 +308,87 @@ function DevtoolsPanel() {
             });
         }}
         variant="primary"
+        style={{
+          backgroundColor:
+            buttonText === "Injected - refresh styles" ? "green" : "",
+        }}
       />
+
+      <Button
+        buttonText={`Advanced Settings | ${isExpanded ? "Collapse" : "Expand"}`}
+        mb={spacingMap.md}
+        onClick={() => setIsExpanded(!isExpanded)}
+        style={{
+          marginBottom: spacingMap.md,
+          marginTop: spacingMap.md,
+          display: "block",
+        }}
+        variant="primary"
+      />
+
+      {isExpanded && (
+        <div style={{ marginBottom: spacingMap.md }}>
+          <input
+            type="text"
+            className="topBarPlacementSelector"
+            placeholder="Alternative Placement Selector"
+            style={{
+              marginBottom: spacingMap.md,
+              marginRight: "10px",
+              width: "200px",
+              height: "32px",
+            }}
+          />
+          <select
+            className="placementDropdown"
+            style={{
+              marginBottom: spacingMap.md,
+              marginRight: "20px",
+              width: "100px",
+              height: "32px",
+            }}
+          >
+            <option value="prepend">Prepend</option>
+            <option value="append">Append</option>
+            <option value="before">Before</option>
+            <option value="after">After</option>
+          </select>
+          <Button
+            buttonText={"Update Anchor Placement"}
+            mb={spacingMap.md}
+            onClick={() => {
+              const selector = (
+                document.querySelector(
+                  ".topBarPlacementSelector",
+                ) as HTMLInputElement
+              ).value;
+              const placement = (
+                document.querySelector(
+                  ".placementDropdown",
+                ) as HTMLSelectElement
+              ).value;
+
+              chrome.tabs
+                .query({ active: true, lastFocusedWindow: true })
+                .then((response) => {
+                  let tabId = response[0].id;
+
+                  return chrome.scripting
+                    .executeScript({
+                      target: { tabId: tabId },
+                      func: updateAnchorPlacement,
+                      args: [selector, placement],
+                    })
+                    .then(() => {
+                      setShowError("");
+                    })
+                    .catch((e) => setShowError(e.message));
+                });
+            }}
+            variant="primary"
+          />
+        </div>
+      )}
 
       <Typography variant="bodyCopy">{devToolsMessage}</Typography>
       <Typography variant="bodyCopy">{backgroundMessage}</Typography>
