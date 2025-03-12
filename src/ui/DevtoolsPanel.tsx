@@ -179,6 +179,7 @@ function DevtoolsPanel() {
   const [addResizeListener, setAddResizeListener] = useState(false);
   const [buttonText, setButtonText] = useState("Inject Test Topbar");
   const [isExpanded, setIsExpanded] = useState(false);
+  const [anchorError, setAnchorError] = useState(""); // New state for anchor error
 
   useEffect(() => {
     console.log("Styles updated", styles);
@@ -335,7 +336,7 @@ function DevtoolsPanel() {
         <>
           <Typography
             mb={spacingMap.md}
-            style={{ fontSize: "20px" }}
+            style={{ fontSize: "18px" }}
             variant="headline"
           >
             Advanced Settings
@@ -409,17 +410,35 @@ function DevtoolsPanel() {
                     return chrome.scripting
                       .executeScript({
                         target: { tabId: tabId },
-                        func: updateAnchorPlacement,
-                        args: [selector, placement],
+                        func: (sel) => !!document.querySelector(sel),
+                        args: [selector],
+                      })
+                      .then((results) => {
+                        if (results[0].result) {
+                          return chrome.scripting.executeScript({
+                            target: { tabId: tabId },
+                            func: updateAnchorPlacement,
+                            args: [selector, placement],
+                          });
+                        } else {
+                          setAnchorError("Selector does not exist");
+                          throw new Error("Selector does not exist");
+                        }
                       })
                       .then(() => {
                         setShowError("");
+                        setAnchorError("");
                       })
                       .catch((e) => setShowError(e.message));
                   });
               }}
               variant="primary"
             />
+            {anchorError && (
+              <Typography variant="bodyCopy" style={{ color: "red" }}>
+                {anchorError}
+              </Typography>
+            )}
           </div>
         </>
       )}
