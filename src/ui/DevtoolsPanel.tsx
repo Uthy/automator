@@ -2,7 +2,12 @@
 
 import React, { useEffect, useState } from "react";
 import ReactDOM from "react-dom/client";
-import { Button, Typography, spacingMap } from "@frontend/wknd-components";
+import {
+  Button,
+  Typography,
+  fontSizes,
+  spacingMap,
+} from "@frontend/wknd-components";
 import { getFixedAndStickySelectors } from "../js/automator";
 import { injectAutomTestEle } from "../js/injectElem";
 import { updateAnchorPlacement } from "../js/anchorAdjust";
@@ -315,7 +320,7 @@ function DevtoolsPanel() {
       />
 
       <Button
-        buttonText={`Advanced Settings | ${isExpanded ? "Collapse" : "Expand"}`}
+        buttonText={`Advanced Settings  ${isExpanded ? "  <  Collapse" : "  >  Expand"}`}
         mb={spacingMap.md}
         onClick={() => setIsExpanded(!isExpanded)}
         style={{
@@ -327,16 +332,43 @@ function DevtoolsPanel() {
       />
 
       {isExpanded && (
-        <div style={{ marginBottom: spacingMap.md }}>
+        <div
+          style={{
+            border: "2px solid blue",
+            padding: "10px",
+            marginBottom: spacingMap.md,
+          }}
+        >
+          <Typography
+            mb={spacingMap.md}
+            style={{ marginBottom: spacingMap.md, fontSize: "20px" }}
+            variant="headline"
+          >
+            Advanced Settings
+          </Typography>
+          <Typography
+            mb={spacingMap.md}
+            style={{ marginBottom: "10px", fontSize: "18px" }}
+            variant="bodyCopy"
+          >
+            Anchor Placement Adjustment
+          </Typography>
+          <Typography
+            mb={spacingMap.md}
+            style={{ marginBottom: "5px", fontSize: "14px" }}
+            variant="bodyCopy"
+          >
+            Alternate selector for top bar placement
+          </Typography>
           <input
             type="text"
             className="topBarPlacementSelector"
-            placeholder="Alternative Placement Selector"
+            placeholder="Placement Selector ( .header )"
             style={{
               marginBottom: spacingMap.md,
               marginRight: "10px",
               width: "200px",
-              height: "32px",
+              height: "26px",
             }}
           />
           <select
