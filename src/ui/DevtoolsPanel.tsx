@@ -4,6 +4,7 @@ import React, { useEffect, useState } from "react";
 import ReactDOM from "react-dom/client";
 import { Button, Typography, spacingMap } from "@frontend/wknd-components";
 import { getFixedAndStickySelectors } from "../js/automator";
+import { injectAutomTestEle } from "../js/injectElem";
 import "../css/fonts.scss";
 import "../css/styles.scss";
 
@@ -168,6 +169,9 @@ function DevtoolsPanel() {
   const [backgroundMessage, setBackgroundMessage] = useState("");
   const [devToolsMessage, setDevtoolsMessage] = useState("");
   const [styles, setStyles] = useState({} as any);
+  const [addClone, setAddClone] = useState(true); // set Default checked
+  const [addResizeListener, setAddResizeListener] = useState(false);
+  const [buttonText, setButtonText] = useState("Inject Test Topbar");
 
   function handleMessageRequestClick(
     requestMsg: () => Promise<string>,
@@ -186,6 +190,28 @@ function DevtoolsPanel() {
     console.log("Styles updated", styles);
   }, [styles]);
 
+  useEffect(() => {
+    // Check if the .bx-automator-test element exists on the site
+    chrome.tabs
+      .query({ active: true, lastFocusedWindow: true })
+      .then((response) => {
+        let tabId = response[0].id;
+        chrome.scripting.executeScript(
+          {
+            target: { tabId: tabId },
+            func: () => !!document.querySelector(".bx-automator-test"),
+          },
+          (results) => {
+            if (results[0].result) {
+              setButtonText("Injected - refresh styles");
+            } else {
+              setButtonText("Inject Test Topbar");
+            }
+          },
+        );
+      });
+  }, []);
+
   return (
     <div style={{ margin: spacingMap.md }}>
       <Typography mb={spacingMap.md} variant="displayLarge">
@@ -203,12 +229,104 @@ function DevtoolsPanel() {
               func: getFixedAndStickySelectors,
             },
             (results: any) => {
-              setStyles(parseCSS(results[0].result));
+              const resultText = results[0].result;
+              setStyles(parseCSS(resultText));
+              const textarea = document.getElementById(
+                "styleTextarea",
+              ) as HTMLTextAreaElement;
+              textarea.value = resultText;
             },
           );
         }}
         variant="primary"
       />
+      <Button
+        buttonText={"Clear Styles"}
+        mb={spacingMap.md}
+        onClick={() => {
+          const textarea = document.getElementById(
+            "styleTextarea",
+          ) as HTMLTextAreaElement;
+          textarea.value = "";
+        }}
+        variant="primary"
+      />
+
+      <textarea
+        id="styleTextarea"
+        placeholder="Enter text"
+        style={{ marginBottom: spacingMap.md, width: "100%", height: "150px" }}
+      />
+
+      <div style={{ marginBottom: spacingMap.md }}>
+        <label>
+          <input
+            type="checkbox"
+            checked={addClone}
+            onChange={(e) => {
+              setAddClone(e.target.checked);
+              if (e.target.checked) {
+                chrome.tabs
+                  .query({ active: true, lastFocusedWindow: true })
+                  .then((response) => {
+                    let tabId = response[0].id;
+                    chrome.scripting.executeScript(
+                      {
+                        target: { tabId: tabId },
+                        func: () =>
+                          !!document.querySelector(".bx-automator-test"),
+                      },
+                      (results) => {
+                        if (results[0].result) {
+                          setButtonText("Injected - refresh styles");
+                        } else {
+                          setButtonText("Inject Test Topbar");
+                        }
+                      },
+                    );
+                  });
+              }
+            }}
+          />
+          Add Clone - Enable Site Pushdown
+        </label>
+      </div>
+
+      <Button
+        buttonText={buttonText}
+        mb={spacingMap.md}
+        onClick={() => {
+          const textarea = document.getElementById(
+            "styleTextarea",
+          ) as HTMLTextAreaElement;
+          const styleContent = textarea.value;
+
+          chrome.tabs
+            .query({ active: true, lastFocusedWindow: true })
+            .then((response) => {
+              let tabId = response[0].id;
+
+              return chrome.scripting
+                .executeScript({
+                  target: { tabId: tabId },
+                  func: injectAutomTestEle,
+                  args: [styleContent, addClone, addResizeListener],
+                })
+                .then(() => {
+                  setButtonText("Injected - refresh styles");
+                })
+                .catch((e) => setShowError(e.message));
+            });
+        }}
+        variant="primary"
+        style={{
+          backgroundColor:
+            buttonText === "Injected - refresh styles" ? "green" : "",
+        }}
+      />
+
+      <Typography variant="bodyCopy">{devToolsMessage}</Typography>
+      <Typography variant="bodyCopy">{backgroundMessage}</Typography>
     </div>
   );
 }
