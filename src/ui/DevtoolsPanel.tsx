@@ -348,97 +348,96 @@ function DevtoolsPanel() {
               marginBottom: spacingMap.md,
             }}
           >
-            <Typography
-              mb={spacingMap.md}
-              style={{ marginBottom: "10px", fontSize: "18px" }}
-              variant="bodyCopy"
-            >
-              Anchor Placement Adjustment
-            </Typography>
-            <Typography
-              mb={spacingMap.md}
-              style={{ marginBottom: "5px", fontSize: "14px" }}
-              variant="bodyCopy"
-            >
-              Alternate selector for top bar placement
-            </Typography>
-            <input
-              type="text"
-              className="topBarPlacementSelector"
-              placeholder="Placement Selector ( .header )"
-              style={{
-                marginBottom: spacingMap.md,
-                marginRight: "10px",
-                width: "200px",
-                height: "26px",
-              }}
-            />
-            <select
-              className="placementDropdown"
-              style={{
-                marginBottom: spacingMap.md,
-                marginRight: "20px",
-                width: "100px",
-                height: "32px",
-              }}
-            >
-              <option value="prepend">Prepend</option>
-              <option value="append">Append</option>
-              <option value="before">Before</option>
-              <option value="after">After</option>
-            </select>
-            <Button
-              buttonText={"Update Anchor Placement"}
-              mb={spacingMap.md}
-              onClick={() => {
-                const selector = (
-                  document.querySelector(
-                    ".topBarPlacementSelector",
-                  ) as HTMLInputElement
-                ).value;
-                const placement = (
-                  document.querySelector(
-                    ".placementDropdown",
-                  ) as HTMLSelectElement
-                ).value;
-
-                chrome.tabs
-                  .query({ active: true, lastFocusedWindow: true })
-                  .then((response) => {
-                    let tabId = response[0].id;
-
-                    return chrome.scripting
-                      .executeScript({
-                        target: { tabId: tabId },
-                        func: (sel) => !!document.querySelector(sel),
-                        args: [selector],
-                      })
-                      .then((results) => {
-                        if (results[0].result) {
-                          return chrome.scripting.executeScript({
-                            target: { tabId: tabId },
-                            func: updateAnchorPlacement,
-                            args: [selector, placement],
-                          });
-                        } else {
-                          setAnchorError("Selector does not exist");
-                          throw new Error("Selector does not exist");
-                        }
-                      })
-                      .then(() => {
-                        setShowError("");
-                        setAnchorError("");
-                      })
-                      .catch((e) => setShowError(e.message));
-                  });
-              }}
-              variant="primary"
-            />
-            {anchorError && (
-              <Typography variant="bodyCopy" style={{ color: "red" }}>
-                {anchorError}
+            <div style={{ marginBottom: spacingMap.md }}>
+              <Typography
+                mb={spacingMap.md}
+                style={{ marginBottom: "10px", fontSize: "18px" }}
+                variant="bodyCopy"
+              >
+                Anchor Placement Adjustment
               </Typography>
-            )}
+              <Typography
+                mb={spacingMap.md}
+                style={{ marginBottom: "5px", fontSize: "14px" }}
+                variant="bodyCopy"
+              >
+                Alternate selector for top bar placement
+              </Typography>
+              <input
+                type="text"
+                className="topBarPlacementSelector"
+                placeholder="Placement Selector ( .header )"
+                style={{
+                  marginRight: "10px",
+                  width: "200px",
+                  height: "26px",
+                }}
+              />
+              <select
+                className="placementDropdown"
+                style={{
+                  marginRight: "20px",
+                  width: "100px",
+                  height: "32px",
+                }}
+              >
+                <option value="prepend">Prepend</option>
+                <option value="append">Append</option>
+                <option value="before">Before</option>
+                <option value="after">After</option>
+              </select>
+              <Button
+                buttonText={"Update Anchor Placement"}
+                onClick={() => {
+                  const selector = (
+                    document.querySelector(
+                      ".topBarPlacementSelector",
+                    ) as HTMLInputElement
+                  ).value;
+                  const placement = (
+                    document.querySelector(
+                      ".placementDropdown",
+                    ) as HTMLSelectElement
+                  ).value;
+
+                  chrome.tabs
+                    .query({ active: true, lastFocusedWindow: true })
+                    .then((response) => {
+                      let tabId = response[0].id;
+
+                      return chrome.scripting
+                        .executeScript({
+                          target: { tabId: tabId },
+                          func: (sel) => !!document.querySelector(sel),
+                          args: [selector],
+                        })
+                        .then((results) => {
+                          if (results[0].result) {
+                            return chrome.scripting.executeScript({
+                              target: { tabId: tabId },
+                              func: updateAnchorPlacement,
+                              args: [selector, placement],
+                            });
+                          } else {
+                            setAnchorError("Selector does not exist");
+                            throw new Error("Selector does not exist");
+                          }
+                        })
+                        .then(() => {
+                          setShowError("");
+                          setAnchorError("");
+                        })
+                        .catch((e) => setShowError(e.message));
+                    });
+                }}
+                variant="primary"
+              />
+              {anchorError && (
+                <Typography variant="bodyCopy" style={{ color: "red" }}>
+                  {anchorError}
+                </Typography>
+              )}
+            </div>
           </div>
         </>
       )}
