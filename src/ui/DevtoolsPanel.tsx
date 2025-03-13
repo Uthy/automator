@@ -2,9 +2,15 @@
 
 import React, { useEffect, useState } from "react";
 import ReactDOM from "react-dom/client";
-import { Button, Typography, spacingMap } from "@frontend/wknd-components";
+import {
+  Button,
+  Typography,
+  fontSizes,
+  spacingMap,
+} from "@frontend/wknd-components";
 import { getFixedAndStickySelectors } from "../js/automator";
 import { injectAutomTestEle } from "../js/injectElem";
+import { updateAnchorPlacement } from "../js/anchorAdjust";
 import "../css/fonts.scss";
 import "../css/styles.scss";
 
@@ -172,19 +178,8 @@ function DevtoolsPanel() {
   const [addClone, setAddClone] = useState(true); // set Default checked
   const [addResizeListener, setAddResizeListener] = useState(false);
   const [buttonText, setButtonText] = useState("Inject Test Topbar");
-
-  function handleMessageRequestClick(
-    requestMsg: () => Promise<string>,
-    setMsg: React.Dispatch<React.SetStateAction<string>>,
-  ) {
-    requestMsg()
-      .then((results) => {
-        setMsg(results);
-      })
-      .catch((e) => {
-        setShowError(e as string);
-      });
-  }
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [anchorError, setAnchorError] = useState(""); // New state for anchor error
 
   useEffect(() => {
     console.log("Styles updated", styles);
@@ -324,6 +319,128 @@ function DevtoolsPanel() {
             buttonText === "Injected - refresh styles" ? "green" : "",
         }}
       />
+
+      <Button
+        buttonText={`Advanced Settings  ${isExpanded ? "  <  Collapse" : "  >  Expand"}`}
+        mb={spacingMap.md}
+        onClick={() => setIsExpanded(!isExpanded)}
+        style={{
+          marginBottom: spacingMap.md,
+          marginTop: spacingMap.md,
+          display: "block",
+        }}
+        variant="primary"
+      />
+
+      {isExpanded && (
+        <>
+          <Typography
+            mb={spacingMap.md}
+            style={{ fontSize: "18px" }}
+            variant="headline"
+          >
+            Advanced Settings
+          </Typography>
+          <div
+            style={{
+              border: "2px solid blue",
+              padding: "10px",
+              marginBottom: spacingMap.md,
+            }}
+          >
+            <div style={{ marginBottom: spacingMap.md }}>
+              <Typography
+                mb={spacingMap.md}
+                style={{ marginBottom: "10px", fontSize: "18px" }}
+                variant="bodyCopy"
+              >
+                Anchor Placement Adjustment
+              </Typography>
+              <Typography
+                mb={spacingMap.md}
+                style={{ marginBottom: "5px", fontSize: "14px" }}
+                variant="bodyCopy"
+              >
+                Alternate selector for top bar placement
+              </Typography>
+              <input
+                type="text"
+                className="topBarPlacementSelector"
+                placeholder="Placement Selector ( .header )"
+                style={{
+                  marginRight: "10px",
+                  width: "200px",
+                  height: "26px",
+                }}
+              />
+              <select
+                className="placementDropdown"
+                style={{
+                  marginRight: "20px",
+                  width: "100px",
+                  height: "32px",
+                }}
+              >
+                <option value="prepend">Prepend</option>
+                <option value="append">Append</option>
+                <option value="before">Before</option>
+                <option value="after">After</option>
+              </select>
+              <Button
+                buttonText={"Update Anchor Placement"}
+                onClick={() => {
+                  const selector = (
+                    document.querySelector(
+                      ".topBarPlacementSelector",
+                    ) as HTMLInputElement
+                  ).value;
+                  const placement = (
+                    document.querySelector(
+                      ".placementDropdown",
+                    ) as HTMLSelectElement
+                  ).value;
+
+                  chrome.tabs
+                    .query({ active: true, lastFocusedWindow: true })
+                    .then((response) => {
+                      let tabId = response[0].id;
+
+                      return chrome.scripting
+                        .executeScript({
+                          target: { tabId: tabId },
+                          func: (sel) => !!document.querySelector(sel),
+                          args: [selector],
+                        })
+                        .then((results) => {
+                          if (results[0].result) {
+                            return chrome.scripting.executeScript({
+                              target: { tabId: tabId },
+                              func: updateAnchorPlacement,
+                              args: [selector, placement],
+                            });
+                          } else {
+                            setAnchorError("Selector does not exist");
+                            throw new Error("Selector does not exist");
+                          }
+                        })
+                        .then(() => {
+                          setShowError("");
+                          setAnchorError("");
+                        })
+                        .catch((e) => setShowError(e.message));
+                    });
+                }}
+                variant="primary"
+              />
+              {anchorError && (
+                <Typography variant="bodyCopy" style={{ color: "red" }}>
+                  {anchorError}
+                </Typography>
+              )}
+            </div>
+          </div>
+        </>
+      )}
 
       <Typography variant="bodyCopy">{devToolsMessage}</Typography>
       <Typography variant="bodyCopy">{backgroundMessage}</Typography>
