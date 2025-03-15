@@ -2,11 +2,20 @@
 
 import React, { useEffect, useState } from "react";
 import ReactDOM from "react-dom/client";
-import { Button, Typography, spacingMap } from "@frontend/wknd-components";
+import {
+  Button,
+  ButtonGroup,
+  Typography,
+  spacingMap,
+  Toggle,
+  TextArea,
+  Icon,
+} from "@frontend/wknd-components";
 import { getFixedAndStickySelectors } from "../js/automator";
 import { injectAutomTestEle } from "../js/injectElem";
 import "../css/fonts.scss";
 import "../css/styles.scss";
+import { injectFunctionTest } from "../js/injectFunctionTest";
 
 const extnTitle: string = chrome.runtime.getManifest().name;
 
@@ -49,7 +58,7 @@ function parseCSS(str: string): CSSRulesOutput {
         var resultToPush: RuleObj = {
           selectors: Array.from(
             new Set(currentSelectors.split(",").map((item) => item.trim())),
-          ),
+          ).filter((item) => !item.includes("bx-automator-test")),
           rule: currentRule,
         };
         if (!!currentQuery) {
@@ -60,7 +69,9 @@ function parseCSS(str: string): CSSRulesOutput {
             let found = false;
             result[currentQuery].forEach((item: RuleObj) => {
               if (item.rule === resultToPush.rule) {
-                item.selectors = item.selectors.concat(resultToPush.selectors);
+                item.selectors = item.selectors
+                  .concat(resultToPush.selectors)
+                  .filter((item) => !item.includes("bx-automator-test"));
                 found = true;
               }
             });
@@ -75,7 +86,9 @@ function parseCSS(str: string): CSSRulesOutput {
             let found = false;
             result["noQuery"].forEach((item: RuleObj) => {
               if (item.rule === resultToPush.rule) {
-                item.selectors = item.selectors.concat(resultToPush.selectors);
+                item.selectors = item.selectors
+                  .concat(resultToPush.selectors)
+                  .filter((item) => !item.includes("bx-automator-test"));
                 found = true;
               }
             });
@@ -116,101 +129,161 @@ function parseCSS(str: string): CSSRulesOutput {
   return { obj: result, css: rules };
 }
 
-function postToDevtools(): Promise<string> {
-  return new Promise((resolve, reject) => {
-    chrome.runtime
-      .sendMessage({
-        sender: "devtoolsPanel",
-        subject: "connectToDevtools",
-      })
-      .then((response) => {
-        resolve(response as string);
-      })
-      .catch((e) => {
-        reject(e);
-      });
-  });
-}
+// function postToDevtools(): Promise<string> {
+//   return new Promise((resolve, reject) => {
+//     chrome.runtime
+//       .sendMessage({
+//         sender: "devtoolsPanel",
+//         subject: "connectToDevtools",
+//       })
+//       .then((response) => {
+//         resolve(response as string);
+//       })
+//       .catch((e) => {
+//         reject(e);
+//       });
+//   });
+// }
 
-function postToBackground(): Promise<string> {
-  return new Promise((resolve, reject) => {
-    chrome.runtime
-      .sendMessage({
-        sender: "devtoolsPanel",
-        subject: "connectToBackground",
-        tabIds: chrome.devtools.inspectedWindow.tabId,
-      })
-      .then((response) => {
-        resolve(response as string);
-      })
-      .catch((e) => {
-        reject(e);
-      });
-  });
-}
+// function postToBackground(): Promise<string> {
+//   return new Promise((resolve, reject) => {
+//     chrome.runtime
+//       .sendMessage({
+//         sender: "devtoolsPanel",
+//         subject: "connectToBackground",
+//         tabIds: chrome.devtools.inspectedWindow.tabId,
+//       })
+//       .then((response) => {
+//         resolve(response as string);
+//       })
+//       .catch((e) => {
+//         reject(e);
+//       });
+//   });
+// }
 
-function gatherResources(): Promise<string> {
-  return new Promise((resolve, reject) => {
-    chrome.runtime.sendMessage(
-      {
-        sender: "devtoolsPanel",
-        subject: "gatherResources",
-        tabIds: chrome.devtools.inspectedWindow.tabId,
-      },
-      (response) => {
-        resolve(response as string);
-      },
-    );
-  });
-}
+// function gatherResources(): Promise<string> {
+//   return new Promise((resolve, reject) => {
+//     chrome.runtime.sendMessage(
+//       {
+//         sender: "devtoolsPanel",
+//         subject: "gatherResources",
+//         tabIds: chrome.devtools.inspectedWindow.tabId,
+//       },
+//       (response) => {
+//         resolve(response as string);
+//       },
+//     );
+//   });
+// }
 
 function DevtoolsPanel() {
-  const [showError, setShowError] = useState("");
-  const [backgroundMessage, setBackgroundMessage] = useState("");
-  const [devToolsMessage, setDevtoolsMessage] = useState("");
+  const [errorMsg, setErrorMsg] = useState("");
+  // const [backgroundMessage, setBackgroundMessage] = useState("");
+  // const [devToolsMessage, setDevtoolsMessage] = useState("");
   const [styles, setStyles] = useState({} as any);
   const [addClone, setAddClone] = useState(true); // set Default checked
   const [addResizeListener, setAddResizeListener] = useState(false);
   const [buttonText, setButtonText] = useState("Inject Test Topbar");
+  const [elementsQuery, setElementsQuery] = useState({} as any);
 
-  function handleMessageRequestClick(
-    requestMsg: () => Promise<string>,
-    setMsg: React.Dispatch<React.SetStateAction<string>>,
-  ) {
-    requestMsg()
-      .then((results) => {
-        setMsg(results);
-      })
-      .catch((e) => {
-        setShowError(e as string);
-      });
+  // function handleMessageRequestClick(
+  //   requestMsg: () => Promise<string>,
+  //   setMsg: React.Dispatch<React.SetStateAction<string>>,
+  // ) {
+  //   requestMsg()
+  //     .then((results) => {
+  //       setMsg(results);
+  //     })
+  //     .catch((e) => {
+  //       setErrorMsg(e as string);
+  //     });
+  // }
+
+  function handleToggleClone() {
+    setAddClone(!addClone);
+    chrome.scripting.executeScript(
+      {
+        target: { tabId: chrome.devtools.inspectedWindow.tabId },
+        func: (addClone) => {
+          addClone = !addClone;
+          const $campaign = document.querySelector(".bx-automator-test"),
+            $clone =
+              $campaign?.querySelector(".bx-automator-test-clone") || null,
+            $style =
+              $campaign?.querySelector("style.bx-automator-test-style") || null;
+          console.log({ addClone });
+          if (addClone) {
+            if (!$clone) {
+              console.log("No clone found");
+            } else {
+              $clone.style.display = "block";
+            }
+          } else {
+            if (!$clone) {
+              console.log("No clone found");
+            } else {
+              $clone.style.display = "none";
+            }
+          }
+          return {
+            $campaign: !!$campaign,
+            $clone: !!$clone,
+            $style: !!$style,
+          };
+        },
+        args: [addClone],
+      },
+      (results) => {
+        console.log("Results", results);
+        setElementsQuery(results[0].result || {});
+      },
+    );
   }
 
-  useEffect(() => {
-    console.log("Styles updated", styles);
-  }, [styles]);
+  // useEffect(() => {
+  //   console.log("Styles updated", styles);
+  // }, [styles]);
 
-  useEffect(() => {
-    // Check if the .bx-automator-test element exists on the site
-    chrome.tabs
-      .query({ active: true, lastFocusedWindow: true })
-      .then((response) => {
-        let tabId = response[0].id;
-        chrome.scripting.executeScript(
-          {
-            target: { tabId: tabId },
-            func: () => !!document.querySelector(".bx-automator-test"),
-          },
-          (results) => {
-            if (results[0].result) {
-              setButtonText("Injected - refresh styles");
-            } else {
-              setButtonText("Inject Test Topbar");
-            }
-          },
-        );
-      });
-  }, []);
+  // useEffect(() => {
+  //   // Check if the .bx-automator-test element exists on the site
+  //   // chrome.tabs
+  //   //   .query({ active: true, lastFocusedWindow: true })
+  //   //   .then((response) => {
+  //   //     let tabId = response[0].id;
+  //   //     chrome.scripting.executeScript(
+  //   //       {
+  //   //         target: { tabId: tabId },
+  //   //         func: () => !!document.querySelector(".bx-automator-test"),
+  //   //       },
+  //   //       (results) => {
+  //   //         console.log("Results", results);
+  //   //         if (results[0].result) {
+  //   //           setButtonText("Injected - refresh styles");
+  //   //         } else {
+  //   //           setButtonText("Inject Test Topbar");
+  //   //         }
+  //   //       },
+  //   //     );
+  //   //   });
+  //   console.log("Devtools Panel mounted");
+  //   chrome.scripting.executeScript(
+  //     {
+  //     target: { tabId: chrome.devtools.inspectedWindow.tabId },
+  //     func: () => {
+  //       let result = {
+  //         $campaign: document.querySelectorAll(".bx-automator-test").length > 0,
+  //         $styleElment: document.querySelectorAll("style.bx-automator-test-style").length > 0,
+  //       };
+  //       return result;
+  //     }
+  //   },
+  //   (results) => {
+  //     console.log("Results", results);
+  //     setElementsQuery(results[0].result || {});
+  //   }
+  //   );
+  // }, []);
 
   return (
     <div style={{ margin: spacingMap.md }}>
@@ -218,82 +291,144 @@ function DevtoolsPanel() {
         {extnTitle}
       </Typography>
 
+      {!styles.css ? (
+        <Button
+          buttonText={"Get Styles"}
+          mb={spacingMap.md}
+          onClick={() => {
+            let tabId = chrome.devtools.inspectedWindow.tabId;
+            chrome.scripting.executeScript(
+              {
+                target: { tabId: tabId },
+                func: getFixedAndStickySelectors,
+              },
+              (results: any) => {
+                const resultText = results[0].result;
+                const resultObj = parseCSS(resultText);
+                setStyles(resultObj);
+                const textarea = document.getElementById(
+                  "styleTextarea",
+                ) as HTMLTextAreaElement;
+                textarea.value = resultObj.css.join("\n");
+              },
+            );
+          }}
+          variant="primary"
+        />
+      ) : (
+        <Button
+          buttonText={"Clear Styles"}
+          mb={spacingMap.md}
+          onClick={() => {
+            const textarea = document.getElementById(
+              "styleTextarea",
+            ) as HTMLTextAreaElement;
+            textarea.value = "";
+            chrome.scripting.executeScript({
+              target: { tabId: chrome.devtools.inspectedWindow.tabId },
+              func: () => {
+                const $campaign = document.querySelector(".bx-automator-test"),
+                  $styleElment = $campaign?.querySelector(
+                    "style.bx-automator-test-style",
+                  );
+                if ($styleElment) {
+                  $styleElment.innerHTML = "";
+                }
+              },
+            });
+          }}
+          variant="primary"
+        />
+      )}
+
       <Button
-        buttonText={"Get Styles"}
-        mb={spacingMap.md}
-        onClick={() => {
-          let tabId = chrome.devtools.inspectedWindow.tabId;
-          chrome.scripting.executeScript(
-            {
-              target: { tabId: tabId },
-              func: getFixedAndStickySelectors,
-            },
-            (results: any) => {
-              const resultText = results[0].result;
-              setStyles(parseCSS(resultText));
-              const textarea = document.getElementById(
-                "styleTextarea",
-              ) as HTMLTextAreaElement;
-              textarea.value = resultText;
-            },
-          );
-        }}
-        variant="primary"
-      />
-      <Button
-        buttonText={"Clear Styles"}
+        buttonText={"Function Test"}
         mb={spacingMap.md}
         onClick={() => {
           const textarea = document.getElementById(
             "styleTextarea",
           ) as HTMLTextAreaElement;
-          textarea.value = "";
+          var styleContent = textarea.value;
+          chrome.tabs
+            .query({ active: true, lastFocusedWindow: true })
+            .then(async (response) => {
+              let tabId = response[0].id;
+              if (!tabId) {
+                return setErrorMsg("No tab found");
+              }
+              try {
+                return await chrome.scripting.executeScript({
+                  target: { tabId: tabId },
+                  func: injectFunctionTest,
+                  args: [styleContent],
+                });
+              } catch (e) {
+                return setErrorMsg(e.message);
+              }
+            });
         }}
         variant="primary"
       />
 
-      <textarea
+      <TextArea
+        dataQA="style-textarea"
         id="styleTextarea"
+        $resize="resize"
         placeholder="Enter text"
-        style={{ marginBottom: spacingMap.md, width: "100%", height: "150px" }}
+        mb={spacingMap.md}
+        style={{ height: "150px" }}
       />
 
-      <div style={{ marginBottom: spacingMap.md }}>
+      {/* <div style={{ marginBottom: spacingMap.md }}>
         <label>
           <input
             type="checkbox"
             checked={addClone}
-            onChange={(e) => {
-              setAddClone(e.target.checked);
-              if (e.target.checked) {
-                chrome.tabs
-                  .query({ active: true, lastFocusedWindow: true })
-                  .then((response) => {
-                    let tabId = response[0].id;
-                    chrome.scripting.executeScript(
-                      {
-                        target: { tabId: tabId },
-                        func: () =>
-                          !!document.querySelector(".bx-automator-test"),
-                      },
-                      (results) => {
-                        if (results[0].result) {
-                          setButtonText("Injected - refresh styles");
-                        } else {
-                          setButtonText("Inject Test Topbar");
-                        }
-                      },
-                    );
-                  });
-              }
-            }}
+            // onChange={(e) => {
+            //   setAddClone(e.target.checked);
+            //   if (e.target.checked) {
+            //     // chrome.tabs
+            //     //   .query({ active: true, lastFocusedWindow: true })
+            //     //   .then((response) => {
+            //     //     let tabId = response[0].id;
+            //     //     chrome.scripting.executeScript(
+            //     //       {
+            //     //         target: { tabId: tabId },
+            //     //         func: () =>
+            //     //           !!document.querySelector(".bx-automator-test"),
+            //     //       },
+            //     //       (results) => {
+            //     //         if (results[0].result) {
+            //     //           setButtonText("Injected - refresh styles");
+            //     //         } else {
+            //     //           setButtonText("Inject Test Topbar");
+            //     //         }
+            //     //       },
+            //     //     );
+            //     //   });
+            //   }
+            // }}
+            onChange = {handleToggleClone}
           />
           Add Clone - Enable Site Pushdown
         </label>
-      </div>
+      </div> */}
+
+      <Toggle
+        dataQA="clone-toggle"
+        isActive={addClone}
+        onClick={handleToggleClone}
+        label="Add Clone - Enable Site Pushdown"
+        mb={spacingMap.md}
+        mt={spacingMap.md}
+      />
 
       <Button
-        buttonText={buttonText}
+        buttonText={
+          elementsQuery.$campaign
+            ? "Injected - refresh styles"
+            : "Inject Test Topbar"
+        }
         mb={spacingMap.md}
         onClick={() => {
           const textarea = document.getElementById(
@@ -315,7 +450,7 @@ function DevtoolsPanel() {
                 .then(() => {
                   setButtonText("Injected - refresh styles");
                 })
-                .catch((e) => setShowError(e.message));
+                .catch((e) => setErrorMsg(e.message));
             });
         }}
         variant="primary"
@@ -325,8 +460,8 @@ function DevtoolsPanel() {
         }}
       />
 
-      <Typography variant="bodyCopy">{devToolsMessage}</Typography>
-      <Typography variant="bodyCopy">{backgroundMessage}</Typography>
+      {/* <Typography variant="bodyCopy">{devToolsMessage}</Typography>
+      <Typography variant="bodyCopy">{backgroundMessage}</Typography> */}
     </div>
   );
 }
