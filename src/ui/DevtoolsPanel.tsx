@@ -4,6 +4,9 @@ import React, { useEffect, useState } from "react";
 import ReactDOM from "react-dom/client";
 import {
   Button,
+  Icon,
+  IconButton,
+  Tooltip,
   Typography,
   fontSizes,
   spacingMap,
@@ -11,6 +14,7 @@ import {
 import { getFixedAndStickySelectors } from "../js/automator";
 import { injectAutomTestEle } from "../js/injectElem";
 import { updateAnchorPlacement } from "../js/anchorAdjust";
+import { setZindex } from "../js/setZindex";
 import "../css/fonts.scss";
 import "../css/styles.scss";
 
@@ -171,22 +175,24 @@ function gatherResources(): Promise<string> {
 }
 
 function DevtoolsPanel() {
-  const [showError, setShowError] = useState("");
+  const [showError, setShowError] = useState(""); // State for general errors
+  const [zIndexError, setZIndexError] = useState("");
   const [backgroundMessage, setBackgroundMessage] = useState("");
   const [devToolsMessage, setDevtoolsMessage] = useState("");
   const [styles, setStyles] = useState({} as any);
-  const [addClone, setAddClone] = useState(true); // set Default checked
+  const [addClone, setAddClone] = useState(true); // set clone default checked
   const [addResizeListener, setAddResizeListener] = useState(false);
   const [buttonText, setButtonText] = useState("Inject Test Topbar");
   const [isExpanded, setIsExpanded] = useState(false);
-  const [anchorError, setAnchorError] = useState(""); // New state for anchor error
+  const [anchorError, setAnchorError] = useState("");
+  const [isZIndexButtonEnabled, setIsZIndexButtonEnabled] = useState(false);
+  const [zIndexButtonText, setZIndexButtonText] = useState("Inject z-index");
+  const [zIndexButtonStyle, setZIndexButtonStyle] = useState({});
+  const [isReloading, setIsReloading] = useState(false);
+  const [rotationAngle, setRotationAngle] = useState(0);
 
-  useEffect(() => {
-    console.log("Styles updated", styles);
-  }, [styles]);
-
-  useEffect(() => {
-    // Check if the .bx-automator-test element exists on the site
+  const checkElementStates = () => {
+    // Check if the .bx-automator-test element exists
     chrome.tabs
       .query({ active: true, lastFocusedWindow: true })
       .then((response) => {
@@ -199,23 +205,113 @@ function DevtoolsPanel() {
           (results) => {
             if (results[0].result) {
               setButtonText("Injected - refresh styles");
+              setIsZIndexButtonEnabled(true); // Enable z-index button if element exists
             } else {
               setButtonText("Inject Test Topbar");
+              setIsZIndexButtonEnabled(false); // Disable z-index button if element doesn't exist
             }
           },
         );
       });
+
+    // Check if the .bx-automation-zindex-fix-style element exists
+    chrome.tabs
+      .query({ active: true, lastFocusedWindow: true })
+      .then((response) => {
+        let tabId = response[0].id;
+        chrome.scripting.executeScript(
+          {
+            target: { tabId: tabId },
+            func: () =>
+              !!document.querySelector(".bx-automation-zindex-fix-style"),
+          },
+          (results) => {
+            if (results[0].result) {
+              setZIndexButtonText("Update z-index");
+              setZIndexButtonStyle({ backgroundColor: "green" }); // Make the button green
+            } else {
+              setZIndexButtonText("Set z-index");
+              setZIndexButtonStyle({}); // Reset button style
+            }
+          },
+        );
+      });
+  };
+
+  const handleReloadClick = () => {
+    setIsReloading(true); // Start the animation
+    checkElementStates(); // Call the function to check element states
+    setTimeout(() => setIsReloading(false), 1000); // Reset animation state after 1 second
+  };
+
+  useEffect(() => {
+    checkElementStates(); // Initial check when the component mounts
+  }, []);
+
+  useEffect(() => {
+    console.log("Styles updated", styles);
+  }, [styles]);
+
+  useEffect(() => {
+    const handleFocus = () => {
+      checkElementStates(); // Re-check element states when the component regains focus
+    };
+
+    // Add event listener for window focus
+    window.addEventListener("focus", handleFocus);
+
+    // Cleanup the event listener on component unmount
+    return () => {
+      window.removeEventListener("focus", handleFocus);
+    };
   }, []);
 
   return (
-    <div style={{ margin: spacingMap.md }}>
-      <Typography mb={spacingMap.md} variant="displayLarge">
+    <div style={{ position: "relative", padding: "30px" }}>
+      <div
+        style={{
+          position: "absolute",
+          top: "40px", // Adjust as needed
+          right: "40px",
+          zIndex: 1000,
+        }}
+      >
+        {/* Reload button fixed to the top-right corner */}
+        <Tooltip
+          dataQA="tooltip"
+          position="bottom-end"
+          text="Check for test topbar and z-index elements"
+          zIndex={99}
+        >
+          <IconButton
+            aria-label="Check for test topbar and z-index elements"
+            dataQA="button-data-qa"
+            icon="SearchCodeIcon"
+            onClick={() => {
+              setRotationAngle((prevAngle) => prevAngle + 360); // Increment rotation angle
+              handleReloadClick(); // Call the existing reload logic
+            }}
+            variant="primary"
+            style={{
+              borderRadius: "50%",
+              transform: `rotate(${rotationAngle}deg)`, // Apply rotation
+              transition: "transform 1s ease-in-out", // Smooth animation
+            }}
+          />
+        </Tooltip>
+      </div>
+      <Typography variant="bodyCopy" dataQA={""}>
+        {showError}
+      </Typography>
+
+      <Typography mb={spacingMap.md} variant="displayLarge" dataQA={""}>
         {extnTitle}
       </Typography>
 
       <Button
         buttonText={"Get Styles"}
         mb={spacingMap.md}
+        style={{ marginRight: "5px" }}
         onClick={() => {
           let tabId = chrome.devtools.inspectedWindow.tabId;
           chrome.scripting.executeScript(
@@ -234,6 +330,7 @@ function DevtoolsPanel() {
           );
         }}
         variant="primary"
+        dataQA={""}
       />
       <Button
         buttonText={"Clear Styles"}
@@ -245,6 +342,7 @@ function DevtoolsPanel() {
           textarea.value = "";
         }}
         variant="primary"
+        dataQA={""}
       />
 
       <textarea
@@ -274,8 +372,10 @@ function DevtoolsPanel() {
                       (results) => {
                         if (results[0].result) {
                           setButtonText("Injected - refresh styles");
+                          setIsZIndexButtonEnabled(true);
                         } else {
                           setButtonText("Inject Test Topbar");
+                          setIsZIndexButtonEnabled(false);
                         }
                       },
                     );
@@ -289,7 +389,6 @@ function DevtoolsPanel() {
 
       <Button
         buttonText={buttonText}
-        mb={spacingMap.md}
         onClick={() => {
           const textarea = document.getElementById(
             "styleTextarea",
@@ -309,6 +408,7 @@ function DevtoolsPanel() {
                 })
                 .then(() => {
                   setButtonText("Injected - refresh styles");
+                  setIsZIndexButtonEnabled(true); // Enable z-index button
                 })
                 .catch((e) => setShowError(e.message));
             });
@@ -318,7 +418,74 @@ function DevtoolsPanel() {
           backgroundColor:
             buttonText === "Injected - refresh styles" ? "green" : "",
         }}
+        dataQA={""}
       />
+
+      {/* z-index input and button */}
+      <div style={{ marginTop: spacingMap.md, marginBottom: spacingMap.md }}>
+        <label style={{ marginRight: "10px" }}>Set Z-index:</label>
+        <input
+          type="number"
+          id="zIndexInput"
+          placeholder="Ex 99"
+          style={{
+            width: "100px",
+            marginRight: "10px",
+            height: "26px",
+          }}
+          disabled={!isZIndexButtonEnabled} // Disable input if z-index button is disabled
+        />
+        <Button
+          buttonText={zIndexButtonText} // Dynamic button text
+          onClick={() => {
+            const zIndexInput = document.getElementById(
+              "zIndexInput",
+            ) as HTMLInputElement;
+            const zIndexValue = zIndexInput.value;
+
+            if (!zIndexValue) {
+              setZIndexError("Add a z-index value"); // Show error if input is empty
+              return;
+            }
+
+            setZIndexError(""); // Clear error if input is valid
+
+            chrome.tabs
+              .query({ active: true, lastFocusedWindow: true })
+              .then((response) => {
+                let tabId = response[0].id;
+
+                return chrome.scripting.executeScript({
+                  target: { tabId: tabId },
+                  func: setZindex,
+                  args: [zIndexValue],
+                });
+              })
+              .then((results) => {
+                if (results[0].result) {
+                  setZIndexButtonText("Update z-index"); // Update button text
+                  setZIndexButtonStyle({ backgroundColor: "green" }); // Change button style
+                } else {
+                  setZIndexError("Failed to set z-index"); // Show error if the operation failed
+                }
+              })
+              .catch((e) => setShowError(e.message));
+          }}
+          variant="primary"
+          style={zIndexButtonStyle} // Dynamic button style
+          disabled={!isZIndexButtonEnabled} // Disable button if z-index button is disabled
+          dataQA={""}
+        />
+        {zIndexError && (
+          <Typography
+            variant="bodyCopy"
+            style={{ color: "red", marginTop: "5px" }}
+            dataQA={""}
+          >
+            {zIndexError}
+          </Typography>
+        )}
+      </div>
 
       <Button
         buttonText={`Advanced Settings  ${isExpanded ? "  <  Collapse" : "  >  Expand"}`}
@@ -330,6 +497,7 @@ function DevtoolsPanel() {
           display: "block",
         }}
         variant="primary"
+        dataQA={""}
       />
 
       {isExpanded && (
@@ -338,6 +506,7 @@ function DevtoolsPanel() {
             mb={spacingMap.md}
             style={{ fontSize: "18px" }}
             variant="headline"
+            dataQA={""}
           >
             Advanced Settings
           </Typography>
@@ -353,6 +522,7 @@ function DevtoolsPanel() {
                 mb={spacingMap.md}
                 style={{ marginBottom: "10px", fontSize: "18px" }}
                 variant="bodyCopy"
+                dataQA={""}
               >
                 Anchor Placement Adjustment
               </Typography>
@@ -360,6 +530,7 @@ function DevtoolsPanel() {
                 mb={spacingMap.md}
                 style={{ marginBottom: "5px", fontSize: "14px" }}
                 variant="bodyCopy"
+                dataQA={""}
               >
                 Alternate selector for top bar placement
               </Typography>
@@ -431,9 +602,14 @@ function DevtoolsPanel() {
                     });
                 }}
                 variant="primary"
+                dataQA={""}
               />
               {anchorError && (
-                <Typography variant="bodyCopy" style={{ color: "red" }}>
+                <Typography
+                  variant="bodyCopy"
+                  style={{ color: "red" }}
+                  dataQA={""}
+                >
                   {anchorError}
                 </Typography>
               )}
@@ -442,8 +618,12 @@ function DevtoolsPanel() {
         </>
       )}
 
-      <Typography variant="bodyCopy">{devToolsMessage}</Typography>
-      <Typography variant="bodyCopy">{backgroundMessage}</Typography>
+      <Typography variant="bodyCopy" dataQA={""}>
+        {devToolsMessage}
+      </Typography>
+      <Typography variant="bodyCopy" dataQA={""}>
+        {backgroundMessage}
+      </Typography>
     </div>
   );
 }
