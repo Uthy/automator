@@ -276,7 +276,6 @@ function DevtoolsPanel() {
           zIndex: 1000,
         }}
       >
-        {/* Reload button fixed to the top-right corner */}
         <Tooltip
           dataQA="tooltip"
           position="bottom-end"
@@ -288,14 +287,14 @@ function DevtoolsPanel() {
             dataQA="button-data-qa"
             icon="SearchCodeIcon"
             onClick={() => {
-              setRotationAngle((prevAngle) => prevAngle + 360); // Increment rotation angle
-              handleReloadClick(); // Call the existing reload logic
+              setRotationAngle((prevAngle) => prevAngle + 360);
+              handleReloadClick();
             }}
             variant="primary"
             style={{
               borderRadius: "50%",
-              transform: `rotate(${rotationAngle}deg)`, // Apply rotation
-              transition: "transform 1s ease-in-out", // Smooth animation
+              transform: `rotate(${rotationAngle}deg)`,
+              transition: "transform 1s ease-in-out",
             }}
           />
         </Tooltip>
@@ -405,7 +404,7 @@ function DevtoolsPanel() {
                 })
                 .then(() => {
                   setButtonText("Injected - refresh styles");
-                  setIsZIndexButtonEnabled(true); // Enable z-index button
+                  setIsZIndexButtonEnabled(true);
                 })
                 .catch((e) => setShowError(e.message));
             });
@@ -430,22 +429,22 @@ function DevtoolsPanel() {
             marginRight: "10px",
             height: "26px",
           }}
-          disabled={!isZIndexButtonEnabled} // Disable input if z-index button is disabled
+          disabled={!isZIndexButtonEnabled}
         />
         <Button
-          buttonText={zIndexButtonText} // Dynamic button text
+          buttonText={zIndexButtonText}
           onClick={() => {
             const zIndexInput = document.getElementById(
               "zIndexInput",
             ) as HTMLInputElement;
             const zIndexValue = zIndexInput.value;
 
-            if (!zIndexValue) {
-              setZIndexError("Add a z-index value"); // Show error if input is empty
+            if (!zIndexValue || isNaN(Number(zIndexValue))) {
+              setZIndexError("Please enter a valid number for z-index");
               return;
             }
 
-            setZIndexError(""); // Clear error if input is valid
+            setZIndexError("");
 
             chrome.tabs
               .query({ active: true, lastFocusedWindow: true })
@@ -460,17 +459,17 @@ function DevtoolsPanel() {
               })
               .then((results) => {
                 if (results[0].result) {
-                  setZIndexButtonText("Update z-index"); // Update button text
-                  setZIndexButtonStyle({ backgroundColor: "green" }); // Change button style
+                  setZIndexButtonText("Update z-index");
+                  setZIndexButtonStyle({ backgroundColor: "green" });
                 } else {
-                  setZIndexError("Failed to set z-index"); // Show error if the operation failed
+                  setZIndexError("Failed to set z-index");
                 }
               })
               .catch((e) => setShowError(e.message));
           }}
           variant="primary"
-          style={zIndexButtonStyle} // Dynamic button style
-          disabled={!isZIndexButtonEnabled} // Disable button if z-index button is disabled
+          style={zIndexButtonStyle}
+          disabled={!isZIndexButtonEnabled}
           dataQA={""}
         />
         {zIndexError && (
