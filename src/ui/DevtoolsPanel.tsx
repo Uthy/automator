@@ -300,9 +300,6 @@ function DevtoolsPanel() {
           />
         </Tooltip>
       </div>
-      <Typography variant="bodyCopy" dataQA={""}>
-        {showError}
-      </Typography>
 
       <Typography mb={spacingMap.md} variant="displayLarge" dataQA={""}>
         {extnTitle}
