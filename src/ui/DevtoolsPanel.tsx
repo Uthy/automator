@@ -280,7 +280,7 @@ function DevtoolsPanel() {
         <Tooltip
           dataQA="tooltip"
           position="bottom-end"
-          text="Check for test topbar and z-index elements"
+          text="Check for test topbar and z-index elements - refresh button states"
           zIndex={99}
         >
           <IconButton
