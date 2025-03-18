@@ -1,15 +1,13 @@
 /* eslint-disable */
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import ReactDOM from "react-dom/client";
 import {
   Button,
-  ButtonGroup,
   Typography,
   spacingMap,
   Toggle,
   TextArea,
-  Icon,
 } from "@frontend/wknd-components";
 import { getFixedAndStickySelectors } from "../js/automator";
 import { injectAutomTestEle } from "../js/injectElem";
@@ -179,13 +177,14 @@ function parseCSS(str: string): CSSRulesOutput {
 
 function DevtoolsPanel() {
   const [errorMsg, setErrorMsg] = useState("");
-  // const [backgroundMessage, setBackgroundMessage] = useState("");
-  // const [devToolsMessage, setDevtoolsMessage] = useState("");
+  const [backgroundMessage, setBackgroundMessage] = useState("");
+  const [devToolsMessage, setDevtoolsMessage] = useState("");
   const [styles, setStyles] = useState({} as any);
   const [addClone, setAddClone] = useState(true); // set Default checked
   const [addResizeListener, setAddResizeListener] = useState(false);
-  const [buttonText, setButtonText] = useState("Inject Test Topbar");
+  // const [buttonText, setButtonText] = useState("Inject Test Topbar");
   const [elementsQuery, setElementsQuery] = useState({} as any);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // function handleMessageRequestClick(
   //   requestMsg: () => Promise<string>,
@@ -200,16 +199,20 @@ function DevtoolsPanel() {
   //     });
   // }
 
-  function handleToggleClone() {
+  const handleToggleClone = () => {
     setAddClone(!addClone);
+    if (!elementsQuery.$clone) {
+      console.log("No clone found - skipping");
+      return;
+    }
+    console.log("Clone found. Running script");
     chrome.scripting.executeScript(
       {
         target: { tabId: chrome.devtools.inspectedWindow.tabId },
         func: (addClone) => {
           addClone = !addClone;
           const $campaign = document.querySelector(".bx-automator-test"),
-            $clone =
-              $campaign?.querySelector(".bx-automator-test-clone") || null,
+            $clone = document.querySelector(".bx-automator-test-clone") || null,
             $style =
               $campaign?.querySelector("style.bx-automator-test-style") || null;
           console.log({ addClone });
@@ -239,229 +242,186 @@ function DevtoolsPanel() {
         setElementsQuery(results[0].result || {});
       },
     );
-  }
+  };
 
-  // useEffect(() => {
-  //   console.log("Styles updated", styles);
-  // }, [styles]);
+  const handleRefreshStyles = () => {
+    chrome.tabs
+      .query({ active: true, lastFocusedWindow: true })
+      .then(async (response) => {
+        let tabId = response[0].id;
+        if (!tabId) {
+          return setErrorMsg("No tab found");
+        }
+        try {
+          return await chrome.scripting.executeScript({
+            target: { tabId: tabId },
+            func: injectFunctionTest,
+            args: [textareaRef.current?.value || ""],
+          });
+        } catch (e) {
+          return setErrorMsg(e.message);
+        }
+      });
+  };
 
-  // useEffect(() => {
-  //   // Check if the .bx-automator-test element exists on the site
-  //   // chrome.tabs
-  //   //   .query({ active: true, lastFocusedWindow: true })
-  //   //   .then((response) => {
-  //   //     let tabId = response[0].id;
-  //   //     chrome.scripting.executeScript(
-  //   //       {
-  //   //         target: { tabId: tabId },
-  //   //         func: () => !!document.querySelector(".bx-automator-test"),
-  //   //       },
-  //   //       (results) => {
-  //   //         console.log("Results", results);
-  //   //         if (results[0].result) {
-  //   //           setButtonText("Injected - refresh styles");
-  //   //         } else {
-  //   //           setButtonText("Inject Test Topbar");
-  //   //         }
-  //   //       },
-  //   //     );
-  //   //   });
-  //   console.log("Devtools Panel mounted");
-  //   chrome.scripting.executeScript(
-  //     {
-  //     target: { tabId: chrome.devtools.inspectedWindow.tabId },
-  //     func: () => {
-  //       let result = {
-  //         $campaign: document.querySelectorAll(".bx-automator-test").length > 0,
-  //         $styleElment: document.querySelectorAll("style.bx-automator-test-style").length > 0,
-  //       };
-  //       return result;
-  //     }
-  //   },
-  //   (results) => {
-  //     console.log("Results", results);
-  //     setElementsQuery(results[0].result || {});
-  //   }
-  //   );
-  // }, []);
+  const handleInjectTestTopbar = () => {
+    const textarea = document.getElementById(
+      "styleTextarea",
+    ) as HTMLTextAreaElement;
+    const styleContent = textarea.value;
+
+    chrome.scripting.executeScript(
+      {
+        target: { tabId: chrome.devtools.inspectedWindow.tabId },
+        func: injectAutomTestEle,
+        args: [styleContent, addClone, addResizeListener],
+      },
+      (results) => {
+        console.log({ results });
+        setElementsQuery(results[0].result || {});
+      },
+    );
+  };
+
+  const handleGetStyles = () => {
+    let tabId = chrome.devtools.inspectedWindow.tabId;
+    chrome.scripting.executeScript(
+      {
+        target: { tabId: tabId },
+        func: getFixedAndStickySelectors,
+      },
+      (results: any) => {
+        const resultText = results[0].result;
+        const resultObj = parseCSS(resultText);
+        setStyles(resultObj);
+        const textarea = document.getElementById(
+          "styleTextarea",
+        ) as HTMLTextAreaElement;
+        textarea.value = resultObj.css.join("\n");
+      },
+    );
+  };
+
+  const handleClearStyles = () => {
+    const textarea = document.getElementById(
+      "styleTextarea",
+    ) as HTMLTextAreaElement;
+    textarea.value = "";
+    chrome.scripting.executeScript({
+      target: { tabId: chrome.devtools.inspectedWindow.tabId },
+      func: () => {
+        const $campaign = document.querySelector(".bx-automator-test"),
+          $styleElment = $campaign?.querySelector(
+            "style.bx-automator-test-style",
+          );
+        if ($styleElment) {
+          $styleElment.innerHTML = "";
+        }
+      },
+    });
+    setStyles({});
+  };
+
+  useEffect(() => {
+    console.log("Devtools Panel mounted");
+    chrome.scripting.executeScript(
+      {
+        target: { tabId: chrome.devtools.inspectedWindow.tabId },
+        func: () => {
+          let result = {
+            $campaign:
+              document.querySelectorAll(".bx-automator-test").length > 0,
+            $clone:
+              document.querySelectorAll(".bx-automator-test-clone").length > 0,
+            $styleElment:
+              document.querySelectorAll("style.bx-automator-test-style")
+                .length > 0,
+          };
+          return result;
+        },
+      },
+      (results) => {
+        setElementsQuery(results[0].result || {});
+      },
+    );
+  }, []);
 
   return (
     <div style={{ margin: spacingMap.md }}>
-      <Typography mb={spacingMap.md} variant="displayLarge">
+      <Typography mb={spacingMap.md} variant="displayLarge" dataQA="extn-title">
         {extnTitle}
       </Typography>
 
       {!styles.css ? (
         <Button
           buttonText={"Get Styles"}
-          mb={spacingMap.md}
-          onClick={() => {
-            let tabId = chrome.devtools.inspectedWindow.tabId;
-            chrome.scripting.executeScript(
-              {
-                target: { tabId: tabId },
-                func: getFixedAndStickySelectors,
-              },
-              (results: any) => {
-                const resultText = results[0].result;
-                const resultObj = parseCSS(resultText);
-                setStyles(resultObj);
-                const textarea = document.getElementById(
-                  "styleTextarea",
-                ) as HTMLTextAreaElement;
-                textarea.value = resultObj.css.join("\n");
-              },
-            );
-          }}
+          mt={spacingMap.sm}
+          mb={spacingMap.sm}
+          onClick={handleGetStyles}
+          leftIcon="Wand"
           variant="primary"
+          dataQA="get-styles"
+          primaryButtonColor="green"
         />
       ) : (
         <Button
           buttonText={"Clear Styles"}
-          mb={spacingMap.md}
-          onClick={() => {
-            const textarea = document.getElementById(
-              "styleTextarea",
-            ) as HTMLTextAreaElement;
-            textarea.value = "";
-            chrome.scripting.executeScript({
-              target: { tabId: chrome.devtools.inspectedWindow.tabId },
-              func: () => {
-                const $campaign = document.querySelector(".bx-automator-test"),
-                  $styleElment = $campaign?.querySelector(
-                    "style.bx-automator-test-style",
-                  );
-                if ($styleElment) {
-                  $styleElment.innerHTML = "";
-                }
-              },
-            });
-          }}
+          mt={spacingMap.sm}
+          mb={spacingMap.sm}
+          onClick={handleClearStyles}
+          leftIcon="Eraser"
           variant="primary"
+          dataQA="clear-styles"
+          primaryButtonColor="destructive"
+          style={{ color: "white" }}
         />
       )}
-
-      <Button
-        buttonText={"Function Test"}
-        mb={spacingMap.md}
-        onClick={() => {
-          const textarea = document.getElementById(
-            "styleTextarea",
-          ) as HTMLTextAreaElement;
-          var styleContent = textarea.value;
-          chrome.tabs
-            .query({ active: true, lastFocusedWindow: true })
-            .then(async (response) => {
-              let tabId = response[0].id;
-              if (!tabId) {
-                return setErrorMsg("No tab found");
-              }
-              try {
-                return await chrome.scripting.executeScript({
-                  target: { tabId: tabId },
-                  func: injectFunctionTest,
-                  args: [styleContent],
-                });
-              } catch (e) {
-                return setErrorMsg(e.message);
-              }
-            });
-        }}
-        variant="primary"
-      />
 
       <TextArea
         dataQA="style-textarea"
         id="styleTextarea"
-        $resize="resize"
-        placeholder="Enter text"
-        mb={spacingMap.md}
-        style={{ height: "150px" }}
+        $resize="both"
+        placeholder="Enter CSS here"
+        mb={spacingMap.xs}
+        rows={10}
+        ref={textareaRef}
       />
 
-      {/* <div style={{ marginBottom: spacingMap.md }}>
-        <label>
-          <input
-            type="checkbox"
-            checked={addClone}
-            // onChange={(e) => {
-            //   setAddClone(e.target.checked);
-            //   if (e.target.checked) {
-            //     // chrome.tabs
-            //     //   .query({ active: true, lastFocusedWindow: true })
-            //     //   .then((response) => {
-            //     //     let tabId = response[0].id;
-            //     //     chrome.scripting.executeScript(
-            //     //       {
-            //     //         target: { tabId: tabId },
-            //     //         func: () =>
-            //     //           !!document.querySelector(".bx-automator-test"),
-            //     //       },
-            //     //       (results) => {
-            //     //         if (results[0].result) {
-            //     //           setButtonText("Injected - refresh styles");
-            //     //         } else {
-            //     //           setButtonText("Inject Test Topbar");
-            //     //         }
-            //     //       },
-            //     //     );
-            //     //   });
-            //   }
-            // }}
-            onChange = {handleToggleClone}
-          />
-          Add Clone - Enable Site Pushdown
-        </label>
-      </div> */}
-
-      <Toggle
-        dataQA="clone-toggle"
-        isActive={addClone}
-        onClick={handleToggleClone}
-        label="Add Clone - Enable Site Pushdown"
-        mb={spacingMap.md}
-        mt={spacingMap.md}
-      />
-
-      <Button
-        buttonText={
-          elementsQuery.$campaign
-            ? "Injected - refresh styles"
-            : "Inject Test Topbar"
-        }
-        mb={spacingMap.md}
-        onClick={() => {
-          const textarea = document.getElementById(
-            "styleTextarea",
-          ) as HTMLTextAreaElement;
-          const styleContent = textarea.value;
-
-          chrome.tabs
-            .query({ active: true, lastFocusedWindow: true })
-            .then((response) => {
-              let tabId = response[0].id;
-
-              return chrome.scripting
-                .executeScript({
-                  target: { tabId: tabId },
-                  func: injectAutomTestEle,
-                  args: [styleContent, addClone, addResizeListener],
-                })
-                .then(() => {
-                  setButtonText("Injected - refresh styles");
-                })
-                .catch((e) => setErrorMsg(e.message));
-            });
-        }}
-        variant="primary"
+      <div
         style={{
-          backgroundColor:
-            buttonText === "Injected - refresh styles" ? "green" : "",
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
         }}
-      />
+      >
+        <Toggle
+          dataQA="clone-toggle"
+          isActive={addClone}
+          onClick={handleToggleClone}
+          label="Enable Site Pushdown"
+        />
+        {elementsQuery.$campaign ? (
+          <Button
+            buttonText="Update Pushdown"
+            variant="primary"
+            leftIcon="RefreshCcwDot"
+            dataQA="refresh-styles"
+            onClick={handleRefreshStyles}
+          />
+        ) : (
+          <Button
+            buttonText="Inject Test Topbar"
+            variant="primary"
+            leftIcon="Crosshair"
+            dataQA="inject-test-topbar"
+            onClick={handleInjectTestTopbar}
+          />
+        )}
+      </div>
 
-      {/* <Typography variant="bodyCopy">{devToolsMessage}</Typography>
-      <Typography variant="bodyCopy">{backgroundMessage}</Typography> */}
+      <Typography variant="bodyCopy">{devToolsMessage}</Typography>
+      <Typography variant="bodyCopy">{backgroundMessage}</Typography>
+      <Typography variant="bodyCopy">{errorMsg}</Typography>
     </div>
   );
 }

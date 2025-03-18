@@ -116,19 +116,47 @@ export const injectAutomTestEle = (
   }
 
   // Create and inject the clone element if addClone is true and clone does not already exist
-  const existingClone = document.querySelector(".bx-automator-test-clone");
-  if (addClone) {
-    if (!existingClone) {
-      createAndInjectElement(
-        "bx-automator-test-clone",
-        updatedStyleContent,
-        false,
-      );
-    }
-  } else if (existingClone) {
-    // Remove the clone element if it exists and addClone is false
-    existingClone.remove();
+  // const existingClone = document.querySelector(".bx-automator-test-clone");
+
+  // If no clone, add. Display can be controlled separately for an easier interface - DS 3/15/2025
+  if (document.querySelectorAll(".bx-automator-test-clone").length === 0) {
+    console.log("Creating clone");
+    createAndInjectElement(
+      "bx-automator-test-clone",
+      updatedStyleContent,
+      false,
+    );
+  } else {
+    console.log("Clone already exists.");
   }
+
+  if (addClone) {
+    document.querySelector(".bx-automator-test-clone").style.display = "block";
+    // if (!existingClone) {
+    //   createAndInjectElement(
+    //     "bx-automator-test-clone",
+    //     updatedStyleContent,
+    //     false,
+    //   );
+    // }
+  } else {
+    // if no clone is preferred, hide the existing clone - DS 3/15/2025
+    document.querySelector(".bx-automator-test-clone").style.display = "none";
+    // Remove the clone element if it exists and addClone is false
+    // existingClone.remove();
+  }
+
+  // inlcuding a return object to help control state - DS 3/15/2025
+  var $campaign = document.querySelectorAll(".bx-automator-test").length > 0,
+    $clone = document.querySelectorAll(".bx-automator-test-clone").length > 0,
+    $styleElement =
+      document.querySelectorAll(".bx-automator-test-style").length > 0;
+
+  return {
+    $campaign,
+    $clone,
+    $styleElement,
+  };
 
   /* Add resize event listener to invoke injectAutomTestEle if addResizeListener is true
   //Not working scoping issue from running getting height to update the style
