@@ -4,15 +4,17 @@ export const injectAutomTestEle = (
   styleContent,
   addClone,
   addResizeListener,
+  zIndexValue = 1000,
 ) => {
-  const automBaseStyles = `
+  // Function to generate automBaseStyles dynamically
+  const generateAutomBaseStyles = (zIndex) => `
     .bx-automator-test .bx-slab {
       position: fixed;
       top: 0;
       background-color: rgba(165, 165, 255, 0.85);
       height: 40px;
       width: 100vw;
-      z-index: 2147483647;
+      z-index: ${zIndex};
       display: flex;
       align-items: center;
       justify-content: center;
@@ -39,6 +41,9 @@ export const injectAutomTestEle = (
       }
     }
   `;
+
+  // Generate styles with the current zIndexValue
+  const automBaseStyles = generateAutomBaseStyles(zIndexValue);
 
   // Get the current height of the .bx-automator-test .bx-slab
   function getCurrentHeight() {
@@ -132,18 +137,8 @@ export const injectAutomTestEle = (
 
   if (addClone) {
     document.querySelector(".bx-automator-test-clone").style.display = "block";
-    // if (!existingClone) {
-    //   createAndInjectElement(
-    //     "bx-automator-test-clone",
-    //     updatedStyleContent,
-    //     false,
-    //   );
-    // }
   } else {
-    // if no clone is preferred, hide the existing clone - DS 3/15/2025
     document.querySelector(".bx-automator-test-clone").style.display = "none";
-    // Remove the clone element if it exists and addClone is false
-    // existingClone.remove();
   }
 
   // inlcuding a return object to help control state - DS 3/15/2025

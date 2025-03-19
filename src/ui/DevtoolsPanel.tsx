@@ -4,6 +4,7 @@ import React, { useEffect, useRef, useState } from "react";
 import ReactDOM from "react-dom/client";
 import {
   Button,
+  Input,
   Typography,
   spacingMap,
   Toggle,
@@ -14,7 +15,6 @@ import { injectAutomTestEle } from "../js/injectElem";
 import "../css/fonts.scss";
 import "../css/styles.scss";
 import { injectFunctionTest } from "../js/injectFunctionTest";
-
 const extnTitle: string = chrome.runtime.getManifest().name;
 
 interface RuleObj {
@@ -270,14 +270,20 @@ function DevtoolsPanel() {
     ) as HTMLTextAreaElement;
     const styleContent = textarea.value;
 
+    const zIndexInput = document.getElementById(
+      "zIndexInput",
+    ) as HTMLInputElement;
+    const zIndexValue = zIndexInput?.value || "2147483647";
+
     chrome.scripting.executeScript(
       {
         target: { tabId: chrome.devtools.inspectedWindow.tabId },
         func: injectAutomTestEle,
-        args: [styleContent, addClone, addResizeListener],
+        args: [styleContent, addClone, addResizeListener, zIndexValue],
       },
       (results) => {
         console.log({ results });
+        console.log(zIndexValue);
         setElementsQuery(results[0].result || {});
       },
     );
@@ -400,6 +406,22 @@ function DevtoolsPanel() {
           onClick={handleToggleClone}
           label="Enable Site Pushdown"
         />
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+          }}
+        >
+          <Input
+            id="zIndexInput"
+            dataQA="z-index-input"
+            autoComplete="on"
+            onChange={function noRefCheck() {}}
+            placeholder="2147483647"
+            prefix="z-index: "
+            size={9}
+          />
+        </div>
         {elementsQuery.$campaign ? (
           <Button
             buttonText="Update Pushdown"
