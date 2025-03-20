@@ -189,6 +189,7 @@ function DevtoolsPanel() {
   const zIndexInput = document.getElementById(
     "zIndexInput",
   ) as HTMLInputElement;
+  const [zIndexError, setZIndexError] = useState(false); // State to track if the input is invalid
 
   // function handleMessageRequestClick(
   //   requestMsg: () => Promise<string>,
@@ -269,6 +270,22 @@ function DevtoolsPanel() {
   };
 
   const handleRefreshBaseStyles = () => {
+    const zIndexValue = zIndexInput?.value || "";
+
+    // Check if the value is empty, clear the error state
+    if (zIndexValue.trim() === "") {
+      setZIndexError(false);
+      return;
+    }
+
+    // Check if the value is a valid number, set error state if it's not
+    if (isNaN(Number(zIndexValue))) {
+      setZIndexError(true);
+      return;
+    }
+
+    setZIndexError(false);
+
     chrome.tabs
       .query({ active: true, lastFocusedWindow: true })
       .then(async (response) => {
@@ -280,7 +297,7 @@ function DevtoolsPanel() {
           return await chrome.scripting.executeScript({
             target: { tabId: tabId },
             func: updateZindex,
-            args: [zIndexInput?.value || "2147483647"],
+            args: [zIndexValue],
           });
         } catch (e) {
           return setErrorMsg(e.message);
@@ -442,9 +459,14 @@ function DevtoolsPanel() {
               dataQA="z-index-input"
               autoComplete="on"
               placeholder="2147483647"
-              prefix="z-index: "
+              prefix={zIndexError ? "Numbers only: " : "z-index: "}
+              validation={zIndexError ? "invalid" : undefined}
+              rightIcon={zIndexError ? "CircleAlert" : undefined}
               size={9}
               onChange={handleRefreshBaseStyles}
+              style={{
+                borderColor: zIndexError ? "red" : undefined, // Red outline if there's an error
+              }}
             />
           ) : (
             <Input
@@ -459,6 +481,7 @@ function DevtoolsPanel() {
             />
           )}
         </div>
+
         {elementsQuery.$campaign ? (
           <Button
             buttonText="Update Pushdown"
