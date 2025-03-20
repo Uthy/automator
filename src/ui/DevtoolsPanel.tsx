@@ -453,30 +453,19 @@ function DevtoolsPanel() {
             alignItems: "center",
           }}
         >
-          {elementsQuery.$campaign ? (
-            <Input
-              id="zIndexInput"
-              dataQA="z-index-input"
-              autoComplete="on"
-              placeholder="2147483647"
-              prefix={zIndexError ? "Numbers only: " : "z-index: "}
-              validation={zIndexError ? "invalid" : undefined}
-              rightIcon={zIndexError ? "CircleAlert" : undefined}
-              size={9}
-              onChange={handleRefreshBaseStyles}
-            />
-          ) : (
-            <Input
-              id="zIndexInput"
-              dataQA="z-index-input"
-              autoComplete="on"
-              placeholder="2147483647"
-              prefix="z-index: "
-              size={9}
-              disabled
-              style={{ opacity: "50%" }}
-            />
-          )}
+          <Input
+            id="zIndexInput"
+            dataQA="z-index-input"
+            autoComplete="on"
+            type="number"
+            placeholder="2147483647"
+            prefix={zIndexError ? "Numbers only: " : "z-index: "}
+            validation={zIndexError ? "invalid" : undefined}
+            rightIcon={zIndexError ? "CircleAlert" : undefined}
+            size={9}
+            disabled={!elementsQuery.$campaign}
+            onChange={handleRefreshBaseStyles}
+          />
         </div>
 
         {elementsQuery.$campaign ? (
