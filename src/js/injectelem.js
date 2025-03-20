@@ -4,10 +4,9 @@ export const injectAutomTestEle = (
   styleContent,
   addClone,
   addResizeListener,
-  zIndexValue = 1000,
+  zIndexValue,
 ) => {
-  // Function to generate automBaseStyles dynamically
-  const generateAutomBaseStyles = (zIndex) => `
+  const getBaseStyles = (zIndex) => `
     .bx-automator-test .bx-slab {
       position: fixed;
       top: 0;
@@ -41,9 +40,8 @@ export const injectAutomTestEle = (
       }
     }
   `;
-
   // Generate styles with the current zIndexValue
-  const automBaseStyles = generateAutomBaseStyles(zIndexValue);
+  const automBaseStyles = getBaseStyles(zIndexValue);
 
   // Get the current height of the .bx-automator-test .bx-slab
   function getCurrentHeight() {
@@ -154,7 +152,7 @@ export const injectAutomTestEle = (
   };
 
   /* Add resize event listener to invoke injectAutomTestEle if addResizeListener is true
-  //Not working scoping issue from running getting height to update the style
+  // Not working scoping issue from running getting height to update the style
   if (addResizeListener) {
     // Remove any existing resize.bx-automator event listener
     window.removeEventListener('resize.automator', handleResize);

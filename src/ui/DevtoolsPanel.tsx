@@ -15,6 +15,7 @@ import { injectAutomTestEle } from "../js/injectElem";
 import "../css/fonts.scss";
 import "../css/styles.scss";
 import { injectFunctionTest } from "../js/injectFunctionTest";
+import { updateZindex } from "../js/updateZindex";
 const extnTitle: string = chrome.runtime.getManifest().name;
 
 interface RuleObj {
@@ -185,6 +186,9 @@ function DevtoolsPanel() {
   // const [buttonText, setButtonText] = useState("Inject Test Topbar");
   const [elementsQuery, setElementsQuery] = useState({} as any);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const zIndexInput = document.getElementById(
+    "zIndexInput",
+  ) as HTMLInputElement;
 
   // function handleMessageRequestClick(
   //   requestMsg: () => Promise<string>,
@@ -264,6 +268,26 @@ function DevtoolsPanel() {
       });
   };
 
+  const handleRefreshBaseStyles = () => {
+    chrome.tabs
+      .query({ active: true, lastFocusedWindow: true })
+      .then(async (response) => {
+        let tabId = response[0].id;
+        if (!tabId) {
+          return setErrorMsg("No tab found");
+        }
+        try {
+          return await chrome.scripting.executeScript({
+            target: { tabId: tabId },
+            func: updateZindex,
+            args: [zIndexInput?.value || "2147483647"],
+          });
+        } catch (e) {
+          return setErrorMsg(e.message);
+        }
+      });
+  };
+
   const handleInjectTestTopbar = () => {
     const textarea = document.getElementById(
       "styleTextarea",
@@ -273,17 +297,17 @@ function DevtoolsPanel() {
     const zIndexInput = document.getElementById(
       "zIndexInput",
     ) as HTMLInputElement;
-    const zIndexValue = zIndexInput?.value || "2147483647";
+    const zIndex = zIndexInput?.value || "2147483647";
 
     chrome.scripting.executeScript(
       {
         target: { tabId: chrome.devtools.inspectedWindow.tabId },
         func: injectAutomTestEle,
-        args: [styleContent, addClone, addResizeListener, zIndexValue],
+        args: [styleContent, addClone, addResizeListener, zIndex],
       },
       (results) => {
         console.log({ results });
-        console.log(zIndexValue);
+        console.log(zIndex);
         setElementsQuery(results[0].result || {});
       },
     );
@@ -412,15 +436,28 @@ function DevtoolsPanel() {
             alignItems: "center",
           }}
         >
-          <Input
-            id="zIndexInput"
-            dataQA="z-index-input"
-            autoComplete="on"
-            onChange={function noRefCheck() {}}
-            placeholder="2147483647"
-            prefix="z-index: "
-            size={9}
-          />
+          {elementsQuery.$campaign ? (
+            <Input
+              id="zIndexInput"
+              dataQA="z-index-input"
+              autoComplete="on"
+              placeholder="2147483647"
+              prefix="z-index: "
+              size={9}
+              onChange={handleRefreshBaseStyles}
+            />
+          ) : (
+            <Input
+              id="zIndexInput"
+              dataQA="z-index-input"
+              autoComplete="on"
+              placeholder="2147483647"
+              prefix="z-index: "
+              size={9}
+              disabled
+              style={{ opacity: "50%" }}
+            />
+          )}
         </div>
         {elementsQuery.$campaign ? (
           <Button
