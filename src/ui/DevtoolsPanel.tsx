@@ -464,9 +464,6 @@ function DevtoolsPanel() {
               rightIcon={zIndexError ? "CircleAlert" : undefined}
               size={9}
               onChange={handleRefreshBaseStyles}
-              style={{
-                borderColor: zIndexError ? "red" : undefined, // Red outline if there's an error
-              }}
             />
           ) : (
             <Input
