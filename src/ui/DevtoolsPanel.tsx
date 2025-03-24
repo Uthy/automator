@@ -113,67 +113,79 @@ function parseCSS(str: string): CSSRulesOutput {
   Object.keys(result).forEach((key) => {
     if (key === "noQuery") {
       result[key].forEach((item: RuleObj) => {
-        rules.push(item.selectors.join(", ") + " { " + item.rule + "; }");
+        // rules.push(item.selectors.join(", ") + " { " + item.rule + "; }");
+        rules.push(
+          `'${item.selectors.join(", ") + " { " + item.rule + "; }"}',`,
+        );
       });
     } else {
-      rules.push(key + " {");
+      // rules.push(key + " {");
+      rules.push(`'${key} {',`);
       result[key].forEach((item: RuleObj) => {
-        rules.push(item.selectors.join(", ") + " { " + item.rule + "; }");
+        // rules.push(item.selectors.join(", ") + " { " + item.rule + "; }");
+        rules.push(
+          `'${item.selectors.join(", ") + " { " + item.rule + "; }"}'`,
+        );
       });
-      rules.push("}");
+      // rules.push("}");
+      rules.push(`'}',`);
     }
   });
 
   return { obj: result, css: rules };
 }
 
-// function postToDevtools(): Promise<string> {
-//   return new Promise((resolve, reject) => {
-//     chrome.runtime
-//       .sendMessage({
-//         sender: "devtoolsPanel",
-//         subject: "connectToDevtools",
-//       })
-//       .then((response) => {
-//         resolve(response as string);
-//       })
-//       .catch((e) => {
-//         reject(e);
-//       });
-//   });
-// }
+function postToDevtools(
+  subject: string = "connectToDevtools",
+  message: string,
+): Promise<string> {
+  return new Promise((resolve, reject) => {
+    chrome.runtime
+      .sendMessage({
+        sender: "devtoolsPanel",
+        subject,
+        message,
+      })
+      .then((response) => {
+        resolve(response as string);
+      })
+      .catch((e) => {
+        reject(e);
+      });
+  });
+}
 
-// function postToBackground(): Promise<string> {
-//   return new Promise((resolve, reject) => {
-//     chrome.runtime
-//       .sendMessage({
-//         sender: "devtoolsPanel",
-//         subject: "connectToBackground",
-//         tabIds: chrome.devtools.inspectedWindow.tabId,
-//       })
-//       .then((response) => {
-//         resolve(response as string);
-//       })
-//       .catch((e) => {
-//         reject(e);
-//       });
-//   });
-// }
+function postToBackground(): Promise<string> {
+  return new Promise((resolve, reject) => {
+    chrome.runtime
+      .sendMessage({
+        sender: "devtoolsPanel",
+        subject: "connectToBackground",
+        tabIds: chrome.devtools.inspectedWindow.tabId,
+      })
+      .then((response) => {
+        resolve(response as string);
+      })
+      .catch((e) => {
+        reject(e);
+      });
+  });
+}
 
-// function gatherResources(): Promise<string> {
-//   return new Promise((resolve, reject) => {
-//     chrome.runtime.sendMessage(
-//       {
-//         sender: "devtoolsPanel",
-//         subject: "gatherResources",
-//         tabIds: chrome.devtools.inspectedWindow.tabId,
-//       },
-//       (response) => {
-//         resolve(response as string);
-//       },
-//     );
-//   });
-// }
+function gatherResources(): Promise<string> {
+  return new Promise((resolve, reject) => {
+    chrome.runtime.sendMessage(
+      {
+        sender: "devtoolsPanel",
+        subject: "gatherResources",
+        tabIds: chrome.devtools.inspectedWindow.tabId,
+      },
+      (response) => {
+        resolve(response as string);
+      },
+    );
+  });
+}
 
 function DevtoolsPanel() {
   const [errorMsg, setErrorMsg] = useState("");
@@ -264,6 +276,17 @@ function DevtoolsPanel() {
       });
   };
 
+  const handleUpdateStylesTest = () => {
+    console.log("test");
+    chrome.devtools.inspectedWindow.eval(
+      `(function() {${textareaRef.current?.value}})()` ||
+        'console.log("No data")',
+      (result, isException) => {
+        console.log({ result, isException });
+      },
+    );
+  };
+
   const handleInjectTestTopbar = () => {
     const textarea = document.getElementById(
       "styleTextarea",
@@ -294,10 +317,11 @@ function DevtoolsPanel() {
         const resultText = results[0].result;
         const resultObj = parseCSS(resultText);
         setStyles(resultObj);
-        const textarea = document.getElementById(
-          "styleTextarea",
-        ) as HTMLTextAreaElement;
-        textarea.value = resultObj.css.join("\n");
+        // const textarea = document.getElementById(
+        //   "styleTextarea",
+        // ) as HTMLTextAreaElement;
+        // textarea.value = resultObj.css.join("\n");
+        // textareaRef.current!.value = `'${resultObj.css.join("', \n\n")}'`;
       },
     );
   };
@@ -321,6 +345,21 @@ function DevtoolsPanel() {
     });
     setStyles({});
   };
+
+  useEffect(() => {
+    console.log("Styels changed", styles);
+    textareaRef.current!.value = `var $campaign = document.querySelector(".bx-automator-test"),
+    $slab = $campaign?.querySelector(".bx-slab"),
+    $styleElment = $campaign?.querySelector("style.bx-automator-test-style"),
+    pushAmount = $slab?.clientHeight || 0;
+
+let styles = [
+${styles.css ? "    " + styles.css.join("\n    ") : ""}
+];
+
+$styleElment.innerHTML = styles.join(" ");
+`;
+  }, [styles]);
 
   useEffect(() => {
     console.log("Devtools Panel mounted");
@@ -383,7 +422,7 @@ function DevtoolsPanel() {
         $resize="both"
         placeholder="Enter CSS here"
         mb={spacingMap.xs}
-        rows={10}
+        rows={15}
         ref={textareaRef}
       />
 
@@ -406,7 +445,7 @@ function DevtoolsPanel() {
             variant="primary"
             leftIcon="RefreshCcwDot"
             dataQA="refresh-styles"
-            onClick={handleRefreshStyles}
+            onClick={handleUpdateStylesTest}
           />
         ) : (
           <Button
