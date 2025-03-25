@@ -556,6 +556,7 @@ function DevtoolsPanel() {
                   placeholder=".header"
                   prefix="Placement Selector: ( '"
                   suffix="' )"
+                  disabled={!elementsQuery.$campaign}
                   size={12}
                   validation={
                     placement404Error === true ? "invalid" : undefined
@@ -597,6 +598,7 @@ function DevtoolsPanel() {
                     labelHtmlFor="anchor-placement-select"
                     name="placement selection"
                     placeholder="Placement Adjustments"
+                    disabled={!elementsQuery.$campaign}
                     onChange={() => {
                       const selector = (
                         document.querySelector(
