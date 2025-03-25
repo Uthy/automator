@@ -4,6 +4,7 @@ import React, { useEffect, useRef, useState } from "react";
 import ReactDOM from "react-dom/client";
 import {
   Button,
+  Select,
   Input,
   Typography,
   spacingMap,
@@ -16,6 +17,7 @@ import "../css/fonts.scss";
 import "../css/styles.scss";
 import { injectFunctionTest } from "../js/injectFunctionTest";
 import { updateZindex } from "../js/updateZindex";
+import { updateAnchorPlacement } from "../js/anchorAdj";
 const extnTitle: string = chrome.runtime.getManifest().name;
 
 interface RuleObj {
@@ -189,7 +191,11 @@ function DevtoolsPanel() {
   const zIndexInput = document.getElementById(
     "zIndexInput",
   ) as HTMLInputElement;
-  const [zIndexError, setZIndexError] = useState(false); // State to track if the input is invalid
+  const [zIndexError, setZIndexError] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [placement404Error, setPlacement404Error] = useState<boolean | null>(
+    null,
+  );
 
   // function handleMessageRequestClick(
   //   requestMsg: () => Promise<string>,
@@ -272,13 +278,11 @@ function DevtoolsPanel() {
   const handleRefreshBaseStyles = () => {
     const zIndexValue = zIndexInput?.value || "";
 
-    // Check if the value is empty, clear the error state
     if (zIndexValue.trim() === "") {
       setZIndexError(false);
       return;
     }
 
-    // Check if the value is a valid number, set error state if it's not
     if (isNaN(Number(zIndexValue))) {
       setZIndexError(true);
       return;
@@ -367,6 +371,29 @@ function DevtoolsPanel() {
       },
     });
     setStyles({});
+  };
+
+  const checkIfSelectorExists = (
+    selector: string,
+    callback: (exists: boolean) => void,
+  ) => {
+    chrome.tabs
+      .query({ active: true, lastFocusedWindow: true })
+      .then((response) => {
+        const tabId = response[0]?.id;
+        if (!tabId) return;
+
+        chrome.scripting
+          .executeScript({
+            target: { tabId: tabId },
+            func: (sel) => !!document.querySelector(sel),
+            args: [selector],
+          })
+          .then((results) => {
+            callback(results[0]?.result || false);
+          })
+          .catch(() => callback(false)); // Handle errors
+      });
   };
 
   useEffect(() => {
@@ -487,9 +514,136 @@ function DevtoolsPanel() {
         )}
       </div>
 
-      <Typography variant="bodyCopy">{devToolsMessage}</Typography>
-      <Typography variant="bodyCopy">{backgroundMessage}</Typography>
-      <Typography variant="bodyCopy">{errorMsg}</Typography>
+      <Button
+        buttonText="Advanced Settings"
+        mt={spacingMap.md}
+        mb={spacingMap.xxs}
+        onClick={() => setIsExpanded(!isExpanded)}
+        variant="secondary"
+        dataQA={"advanced-settings-btn"}
+        rightIcon={!isExpanded ? "ChevronDown" : "ChevronUp"}
+      />
+      {isExpanded && (
+        <>
+          <div
+            style={{
+              border: "2px solid blue",
+              padding: "10px",
+              marginBottom: spacingMap.md,
+            }}
+          >
+            <div style={{ marginBottom: spacingMap.md }}>
+              <Typography
+                mb={spacingMap.md}
+                style={{ fontSize: "18px" }}
+                variant="bodyCopy"
+                dataQA={""}
+              >
+                Anchor Placement Adjustment
+              </Typography>
+              <div
+                style={{
+                  display: "flex",
+                  verticalAlign: "top",
+                  gap: "10px",
+                }}
+              >
+                <Input
+                  type="text"
+                  id="topBarPlacementSelector"
+                  dataQA="anchor-placement-input"
+                  autoComplete="on"
+                  placeholder=".header"
+                  prefix="Placement Selector: ( '"
+                  suffix="' )"
+                  size={12}
+                  validation={
+                    placement404Error === true ? "invalid" : undefined
+                  }
+                  requirements={
+                    placement404Error === true
+                      ? ["Element not found, re-enter selector"]
+                      : undefined
+                  }
+                  onBlur={() => {
+                    const selector = (
+                      document.querySelector(
+                        "#topBarPlacementSelector",
+                      ) as HTMLInputElement
+                    ).value;
+
+                    if (selector.trim() === "") {
+                      setPlacement404Error(null); // Set to null for empty input
+                      return;
+                    }
+
+                    checkIfSelectorExists(selector, (exists) => {
+                      setPlacement404Error(!exists); // Set to true if not found, false if found
+                    });
+                  }}
+                  rightIcon={
+                    placement404Error === true
+                      ? "CircleAlert"
+                      : placement404Error === false
+                        ? "SearchCheck"
+                        : "Search" // Default to "Search" when placement404Error is null
+                  }
+                />
+                <div style={{ width: "250px", display: "block", gap: "10px" }}>
+                  <Select
+                    dataQA="placement-select"
+                    helperText=""
+                    id="placementDropdown"
+                    labelHtmlFor="anchor-placement-select"
+                    name="placement selection"
+                    placeholder="Placement Adjustments"
+                    onChange={() => {
+                      const selector = (
+                        document.querySelector(
+                          "#topBarPlacementSelector",
+                        ) as HTMLInputElement
+                      ).value;
+                      const placement = (
+                        document.querySelector(
+                          "#placementDropdown",
+                        ) as HTMLSelectElement
+                      ).value;
+
+                      chrome.tabs
+                        .query({ active: true, lastFocusedWindow: true })
+                        .then((response) => {
+                          const tabId = response[0]?.id;
+                          if (!tabId) return;
+
+                          chrome.scripting.executeScript({
+                            target: { tabId: tabId },
+                            func: updateAnchorPlacement,
+                            args: [selector, placement],
+                          });
+                        });
+                    }}
+                  >
+                    <option value="prepend">Prepend</option>
+                    <option value="append">Append</option>
+                    <option value="before">Before</option>
+                    <option value="after">After</option>
+                  </Select>
+                </div>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
+      <Typography variant="bodyCopy" dataQA={"devtoolsMessage"}>
+        {devToolsMessage}
+      </Typography>
+      <Typography variant="bodyCopy" dataQA={"backgroundMessage"}>
+        {backgroundMessage}
+      </Typography>
+      <Typography variant="bodyCopy" dataQA={"errorMsg"}>
+        {errorMsg}
+      </Typography>
     </div>
   );
 }
