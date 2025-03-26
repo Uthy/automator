@@ -12,6 +12,7 @@ import {
   spacingMap,
   Toggle,
   TextArea,
+  ScreenBackground,
 } from "@frontend/wknd-components";
 import { getFixedAndStickySelectors } from "../js/automator";
 import { injectAutomTestEle } from "../js/injectElem";
@@ -427,7 +428,6 @@ function DevtoolsPanel() {
       <Typography mb={spacingMap.md} variant="displayLarge" dataQA="extn-title">
         {extnTitle}
       </Typography>
-
       {!styles.css ? (
         <Button
           buttonText={"Get Styles"}
@@ -452,7 +452,6 @@ function DevtoolsPanel() {
           style={{ color: "white" }}
         />
       )}
-
       <TextArea
         dataQA="style-textarea"
         id="styleTextarea"
@@ -462,7 +461,6 @@ function DevtoolsPanel() {
         rows={10}
         ref={textareaRef}
       />
-
       <div
         style={{
           display: "flex",
@@ -471,12 +469,6 @@ function DevtoolsPanel() {
           marginBottom: spacingMap.md,
         }}
       >
-        <Toggle
-          dataQA="clone-toggle"
-          isActive={addClone}
-          onClick={handleToggleClone}
-          label="Enable Site Pushdown"
-        />
         <div
           style={{
             display: "flex",
@@ -535,6 +527,25 @@ function DevtoolsPanel() {
         />
         {isExpanded && (
           <>
+            <Divider
+              dataQA="purpose-selector-divider"
+              m={`${spacingMap.sm} -${spacingMap.sm}`}
+              width="auto"
+            />
+            <Typography
+              mb={spacingMap.xs}
+              variant="headlineSmall"
+              dataQA={"Enable Site Pushdown Headline"}
+            >
+              Enable Site Pushdown
+            </Typography>
+            <Toggle
+              dataQA="clone-toggle"
+              isActive={addClone}
+              onClick={handleToggleClone}
+              label="Add Campaign Clone"
+              disabled={!elementsQuery.$campaign}
+            />
             <Divider
               dataQA="purpose-selector-divider"
               m={`${spacingMap.sm} -${spacingMap.sm}`}
