@@ -3,6 +3,8 @@
 import React, { useEffect, useRef, useState } from "react";
 import ReactDOM from "react-dom/client";
 import {
+  Card,
+  Divider,
   Button,
   Select,
   Input,
@@ -466,6 +468,7 @@ function DevtoolsPanel() {
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
+          marginBottom: spacingMap.md,
         }}
       >
         <Toggle
@@ -499,6 +502,7 @@ function DevtoolsPanel() {
           <Button
             buttonText="Update Pushdown"
             variant="primary"
+            size="Small"
             leftIcon="RefreshCcwDot"
             dataQA="refresh-styles"
             onClick={handleRefreshStyles}
@@ -513,31 +517,34 @@ function DevtoolsPanel() {
           />
         )}
       </div>
-
-      <Button
-        buttonText="Advanced Settings"
+      <Card
+        dataQA="advanced-settings-card"
         mt={spacingMap.md}
-        mb={spacingMap.xxs}
-        onClick={() => setIsExpanded(!isExpanded)}
-        variant="secondary"
-        dataQA={"advanced-settings-btn"}
-        rightIcon={!isExpanded ? "ChevronDown" : "ChevronUp"}
-      />
-      {isExpanded && (
-        <>
-          <div
-            style={{
-              border: "2px solid blue",
-              padding: "10px",
-              marginBottom: spacingMap.md,
-            }}
-          >
-            <div style={{ marginBottom: spacingMap.md }}>
+        ariaLabel="Advanced Settings Button toggle to expand"
+      >
+        <Button
+          buttonText="Advanced Settings"
+          mt={spacingMap.xxs}
+          mb={spacingMap.xxs}
+          size="Small"
+          onClick={() => setIsExpanded(!isExpanded)}
+          variant="secondary"
+          dataQA={"advanced-settings-btn"}
+          rightIcon={!isExpanded ? "ChevronDown" : "ChevronUp"}
+          style={{ width: "200px" }}
+        />
+        {isExpanded && (
+          <>
+            <Divider
+              dataQA="purpose-selector-divider"
+              m={`${spacingMap.sm} -${spacingMap.sm}`}
+              width="auto"
+            />
+            <div style={{ marginBottom: spacingMap.sm }}>
               <Typography
-                mb={spacingMap.md}
-                style={{ fontSize: "18px" }}
-                variant="bodyCopy"
-                dataQA={""}
+                mb={spacingMap.xs}
+                variant="headlineSmall"
+                dataQA={"Anchor Placement Adjustment Headline"}
               >
                 Anchor Placement Adjustment
               </Typography>
@@ -633,9 +640,9 @@ function DevtoolsPanel() {
                 </div>
               </div>
             </div>
-          </div>
-        </>
-      )}
+          </>
+        )}
+      </Card>
 
       <Typography variant="bodyCopy" dataQA={"devtoolsMessage"}>
         {devToolsMessage}
