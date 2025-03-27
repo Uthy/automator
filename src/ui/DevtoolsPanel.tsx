@@ -12,7 +12,7 @@ import {
   spacingMap,
   Toggle,
   TextArea,
-  ScreenBackground,
+  IconButton,
 } from "@frontend/wknd-components";
 import { getFixedAndStickySelectors } from "../js/automator";
 import { injectAutomTestEle } from "../js/injectElem";
@@ -186,7 +186,7 @@ function DevtoolsPanel() {
   const [backgroundMessage, setBackgroundMessage] = useState("");
   const [devToolsMessage, setDevtoolsMessage] = useState("");
   const [styles, setStyles] = useState({} as any);
-  const [addClone, setAddClone] = useState(true); // set Default checked
+  const [addClone, setAddClone] = useState(true);
   const [addResizeListener, setAddResizeListener] = useState(false);
   // const [buttonText, setButtonText] = useState("Inject Test Topbar");
   const [elementsQuery, setElementsQuery] = useState({} as any);
@@ -199,6 +199,8 @@ function DevtoolsPanel() {
   const [placement404Error, setPlacement404Error] = useState<boolean | null>(
     null,
   );
+  const [isRotating, setIsRotating] = useState(false);
+  const [rotationAngle, setRotationAngle] = useState(0);
 
   // function handleMessageRequestClick(
   //   requestMsg: () => Promise<string>,
@@ -395,12 +397,12 @@ function DevtoolsPanel() {
           .then((results) => {
             callback(results[0]?.result || false);
           })
-          .catch(() => callback(false)); // Handle errors
+          .catch(() => callback(false));
       });
   };
 
-  useEffect(() => {
-    console.log("Devtools Panel mounted");
+  const handleRefreshElementsQuery = () => {
+    setRotationAngle((prevAngle) => prevAngle + 360);
     chrome.scripting.executeScript(
       {
         target: { tabId: chrome.devtools.inspectedWindow.tabId },
@@ -421,94 +423,113 @@ function DevtoolsPanel() {
         setElementsQuery(results[0].result || {});
       },
     );
+  };
+
+  useEffect(() => {
+    console.log("Devtools Panel mounted");
+    handleRefreshElementsQuery();
   }, []);
 
   return (
-    <div style={{ margin: spacingMap.md }}>
+    <div style={{ margin: spacingMap.md, position: "relative" }}>
+      <IconButton
+        variant="primary"
+        dataQA="refresh-elements-query"
+        aria-label="Refresh Elements Query"
+        onClick={handleRefreshElementsQuery}
+        style={{
+          position: "absolute",
+          top: spacingMap.xxs,
+          right: spacingMap.sm,
+          transition: "transform 0.5s linear",
+          transform: `rotate(${rotationAngle}deg)`,
+        }}
+        icon="RotateCw"
+        className={isRotating ? "rotate-icon" : ""}
+      />
+
       <Typography mb={spacingMap.md} variant="displayLarge" dataQA="extn-title">
         {extnTitle}
       </Typography>
-      {!styles.css ? (
-        <Button
-          buttonText={"Get Styles"}
-          mt={spacingMap.sm}
-          mb={spacingMap.sm}
-          onClick={handleGetStyles}
-          leftIcon="Wand"
-          variant="primary"
-          dataQA="get-styles"
-          primaryButtonColor="green"
-        />
-      ) : (
-        <Button
-          buttonText={"Clear Styles"}
-          mt={spacingMap.sm}
-          mb={spacingMap.sm}
-          onClick={handleClearStyles}
-          leftIcon="Eraser"
-          variant="primary"
-          dataQA="clear-styles"
-          primaryButtonColor="destructive"
-          style={{ color: "white" }}
-        />
-      )}
-      <TextArea
-        dataQA="style-textarea"
-        id="styleTextarea"
-        $resize="both"
-        placeholder="Enter CSS here"
-        mb={spacingMap.xs}
-        rows={10}
-        ref={textareaRef}
-      />
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          marginBottom: spacingMap.md,
-        }}
-      >
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-          }}
-        >
-          <Input
-            id="zIndexInput"
-            dataQA="z-index-input"
-            autoComplete="on"
-            type="number"
-            placeholder="2147483647"
-            prefix={zIndexError ? "Numbers only: " : "z-index: "}
-            validation={zIndexError ? "invalid" : undefined}
-            rightIcon={zIndexError ? "CircleAlert" : undefined}
-            size={9}
-            disabled={!elementsQuery.$campaign}
-            onChange={handleRefreshBaseStyles}
-          />
-        </div>
 
-        {elementsQuery.$campaign ? (
+      <Card dataQA={"build-stylesheets-card"} ariaLabel={""}>
+        {!styles.css ? (
           <Button
-            buttonText="Update Pushdown"
+            buttonText={"Get Styles"}
+            mb={spacingMap.sm}
+            onClick={handleGetStyles}
+            leftIcon="Wand"
             variant="primary"
-            size="Small"
-            leftIcon="RefreshCcwDot"
-            dataQA="refresh-styles"
-            onClick={handleRefreshStyles}
+            dataQA="get-styles"
+            primaryButtonColor="green"
+            style={{ width: "130px" }}
           />
         ) : (
           <Button
-            buttonText="Inject Test Topbar"
+            buttonText={"Clear Styles"}
+            mb={spacingMap.sm}
+            onClick={handleClearStyles}
+            leftIcon="Eraser"
             variant="primary"
-            leftIcon="Crosshair"
-            dataQA="inject-test-topbar"
-            onClick={handleInjectTestTopbar}
+            dataQA="clear-styles"
+            primaryButtonColor="destructive"
+            style={{ color: "white", width: "130px" }}
           />
         )}
-      </div>
+        <TextArea
+          dataQA="style-textarea"
+          id="styleTextarea"
+          $resize="both"
+          placeholder="Enter CSS here"
+          mb={spacingMap.xs}
+          rows={10}
+          ref={textareaRef}
+        />
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+          }}
+        >
+          <div style={{ width: "170px" }}>
+            <Input
+              id="zIndexInput"
+              dataQA="z-index-input"
+              autoComplete="on"
+              type="number"
+              placeholder="2147483647"
+              prefix={zIndexError ? "Numbers only: " : "z-index: "}
+              validation={zIndexError ? "invalid" : undefined}
+              rightIcon={zIndexError ? "CircleAlert" : undefined}
+              disabled={!elementsQuery.$campaign}
+              onChange={handleRefreshBaseStyles}
+            />
+          </div>
+
+          {elementsQuery.$campaign ? (
+            <Button
+              buttonText="Update Pushdown"
+              variant="primary"
+              size="Small"
+              leftIcon="RefreshCcwDot"
+              dataQA="refresh-styles"
+              onClick={handleRefreshStyles}
+            />
+          ) : (
+            <Button
+              buttonText="Inject Test Topbar"
+              variant="primary"
+              leftIcon="Crosshair"
+              dataQA="inject-test-topbar"
+              onClick={() => {
+                handleInjectTestTopbar();
+                handleRefreshStyles();
+              }}
+            />
+          )}
+        </div>
+      </Card>
       <Card
         dataQA="advanced-settings-card"
         mt={spacingMap.md}
@@ -523,7 +544,7 @@ function DevtoolsPanel() {
           variant="secondary"
           dataQA={"advanced-settings-btn"}
           rightIcon={!isExpanded ? "ChevronDown" : "ChevronUp"}
-          style={{ width: "200px" }}
+          style={{ width: "175px" }}
         />
         {isExpanded && (
           <>
@@ -592,12 +613,12 @@ function DevtoolsPanel() {
                     ).value;
 
                     if (selector.trim() === "") {
-                      setPlacement404Error(null); // Set to null for empty input
+                      setPlacement404Error(null);
                       return;
                     }
 
                     checkIfSelectorExists(selector, (exists) => {
-                      setPlacement404Error(!exists); // Set to true if not found, false if found
+                      setPlacement404Error(!exists);
                     });
                   }}
                   rightIcon={
@@ -606,6 +627,9 @@ function DevtoolsPanel() {
                       : placement404Error === false
                         ? "SearchCheck"
                         : "Search" // Default to "Search" when placement404Error is null
+                  }
+                  style={
+                    placement404Error === false ? { color: "green" } : undefined
                   }
                 />
                 <div style={{ width: "250px", display: "block", gap: "10px" }}>
