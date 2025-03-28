@@ -4,15 +4,16 @@ export const injectAutomTestEle = (
   styleContent,
   addClone,
   addResizeListener,
+  zIndexValue,
 ) => {
-  const automBaseStyles = `
+  const getBaseStyles = (zIndex) => `
     .bx-automator-test .bx-slab {
       position: fixed;
       top: 0;
       background-color: rgba(165, 165, 255, 0.85);
       height: 40px;
       width: 100vw;
-      z-index: 2147483647;
+      z-index: ${zIndex};
       display: flex;
       align-items: center;
       justify-content: center;
@@ -39,6 +40,8 @@ export const injectAutomTestEle = (
       }
     }
   `;
+  // Generate styles with the current zIndexValue
+  const automBaseStyles = getBaseStyles(zIndexValue);
 
   // Get the current height of the .bx-automator-test .bx-slab
   function getCurrentHeight() {
@@ -116,22 +119,40 @@ export const injectAutomTestEle = (
   }
 
   // Create and inject the clone element if addClone is true and clone does not already exist
-  const existingClone = document.querySelector(".bx-automator-test-clone");
-  if (addClone) {
-    if (!existingClone) {
-      createAndInjectElement(
-        "bx-automator-test-clone",
-        updatedStyleContent,
-        false,
-      );
-    }
-  } else if (existingClone) {
-    // Remove the clone element if it exists and addClone is false
-    existingClone.remove();
+  // const existingClone = document.querySelector(".bx-automator-test-clone");
+
+  // If no clone, add. Display can be controlled separately for an easier interface - DS 3/15/2025
+  if (document.querySelectorAll(".bx-automator-test-clone").length === 0) {
+    console.log("Creating clone");
+    createAndInjectElement(
+      "bx-automator-test-clone",
+      updatedStyleContent,
+      false,
+    );
+  } else {
+    console.log("Clone already exists.");
   }
 
+  if (addClone) {
+    document.querySelector(".bx-automator-test-clone").style.display = "block";
+  } else {
+    document.querySelector(".bx-automator-test-clone").style.display = "none";
+  }
+
+  // inlcuding a return object to help control state - DS 3/15/2025
+  var $campaign = document.querySelectorAll(".bx-automator-test").length > 0,
+    $clone = document.querySelectorAll(".bx-automator-test-clone").length > 0,
+    $styleElement =
+      document.querySelectorAll(".bx-automator-test-style").length > 0;
+
+  return {
+    $campaign,
+    $clone,
+    $styleElement,
+  };
+
   /* Add resize event listener to invoke injectAutomTestEle if addResizeListener is true
-  //Not working scoping issue from running getting height to update the style
+  // Not working scoping issue from running getting height to update the style
   if (addResizeListener) {
     // Remove any existing resize.bx-automator event listener
     window.removeEventListener('resize.automator', handleResize);
