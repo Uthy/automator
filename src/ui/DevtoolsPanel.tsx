@@ -196,11 +196,14 @@ function DevtoolsPanel() {
   ) as HTMLInputElement;
   const [zIndexError, setZIndexError] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
-  const [placement404Error, setPlacement404Error] = useState<boolean | null>(
-    null,
-  );
+  const [placement404Error, setPlacement404Error] = useState<
+    boolean | "multi" | null
+  >(null);
   const [isRotating, setIsRotating] = useState(false);
   const [rotationAngle, setRotationAngle] = useState(0);
+  const topBarPlacementSelectorRef = useRef<HTMLInputElement>(null);
+  const placementDropdownRef = useRef<HTMLSelectElement>(null);
+  const previousSelectorValue = useRef<string | null>(null); // Track the previous value of #topBarPlacementSelector
 
   // function handleMessageRequestClick(
   //   requestMsg: () => Promise<string>,
@@ -236,13 +239,17 @@ function DevtoolsPanel() {
             if (!$clone) {
               console.log("No clone found");
             } else {
-              $clone.style.display = "block";
+              if ($clone instanceof HTMLElement) {
+                $clone.style.display = "block";
+              }
             }
           } else {
             if (!$clone) {
               console.log("No clone found");
             } else {
-              $clone.style.display = "none";
+              if ($clone instanceof HTMLElement) {
+                $clone.style.display = "none";
+              }
             }
           }
           return {
@@ -275,7 +282,11 @@ function DevtoolsPanel() {
             args: [textareaRef.current?.value || ""],
           });
         } catch (e) {
-          return setErrorMsg(e.message);
+          const errorMessage =
+            e instanceof Error
+              ? e.message
+              : `An unknown error occurred: ${JSON.stringify(e)}`;
+          return setErrorMsg(errorMessage);
         }
       });
   };
@@ -309,7 +320,11 @@ function DevtoolsPanel() {
             args: [zIndexValue],
           });
         } catch (e) {
-          return setErrorMsg(e.message);
+          const errorMessage =
+            e instanceof Error
+              ? e.message
+              : `An unknown error occurred: ${JSON.stringify(e)}`;
+          return setErrorMsg(errorMessage);
         }
       });
   };
@@ -380,7 +395,7 @@ function DevtoolsPanel() {
 
   const checkIfSelectorExists = (
     selector: string,
-    callback: (exists: boolean) => void,
+    callback: (result: { exists: boolean; multiple: boolean }) => void,
   ) => {
     chrome.tabs
       .query({ active: true, lastFocusedWindow: true })
@@ -391,13 +406,19 @@ function DevtoolsPanel() {
         chrome.scripting
           .executeScript({
             target: { tabId: tabId },
-            func: (sel) => !!document.querySelector(sel),
+            func: (sel) => {
+              const elements = document.querySelectorAll(sel);
+              return {
+                exists: elements.length > 0,
+                multiple: elements.length > 1,
+              };
+            },
             args: [selector],
           })
           .then((results) => {
-            callback(results[0]?.result || false);
+            callback(results[0]?.result || { exists: false, multiple: false });
           })
-          .catch(() => callback(false));
+          .catch(() => callback({ exists: false, multiple: false }));
       });
   };
 
@@ -423,6 +444,94 @@ function DevtoolsPanel() {
         setElementsQuery(results[0].result || {});
       },
     );
+  };
+
+  const handleAnchorPlacementChange = () => {
+    const selector = topBarPlacementSelectorRef.current?.value;
+    const placement = placementDropdownRef.current?.value as
+      | "prepend"
+      | "append"
+      | "before"
+      | "after";
+
+    if (!selector) {
+      setErrorMsg("Selector cannot be empty");
+      return;
+    }
+
+    chrome.tabs
+      .query({ active: true, lastFocusedWindow: true })
+      .then((response) => {
+        const tabId = response[0]?.id;
+        if (!tabId) {
+          setErrorMsg("No tab found");
+          return;
+        }
+
+        chrome.scripting
+          .executeScript({
+            target: { tabId: tabId },
+            func: (sel, place) => {
+              function updateAnchorPlacement(
+                selector: string,
+                placement: string,
+              ): void {
+                const targetElement = document.querySelector(
+                  selector,
+                ) as HTMLElement | null;
+                const automatorElement = document.querySelector(
+                  ".bx-automator-test",
+                ) as HTMLElement | null;
+
+                if (!targetElement || !automatorElement) {
+                  console.error(
+                    "Target element or .bx-automator-test element not found",
+                  );
+                  return;
+                }
+
+                if (targetElement === automatorElement) {
+                  console.error(
+                    "Target element and .bx-automator-test element are the same",
+                  );
+                  return;
+                }
+
+                switch (placement) {
+                  case "prepend":
+                    targetElement.prepend(automatorElement);
+                    break;
+                  case "append":
+                    targetElement.append(automatorElement);
+                    break;
+                  case "before":
+                    targetElement.parentNode?.insertBefore(
+                      automatorElement,
+                      targetElement,
+                    );
+                    break;
+                  case "after":
+                    targetElement.parentNode?.insertBefore(
+                      automatorElement,
+                      targetElement.nextSibling,
+                    );
+                    break;
+                  default:
+                    console.error("Invalid placement option");
+                }
+              }
+              updateAnchorPlacement(sel, place);
+            },
+            args: [selector, placement],
+          })
+          .then(() => {
+            setErrorMsg("");
+          })
+          .catch((error) => {
+            console.error("Error executing script:", error);
+            setErrorMsg("Failed to update anchor placement");
+          });
+      });
   };
 
   useEffect(() => {
@@ -590,6 +699,7 @@ function DevtoolsPanel() {
                 <Input
                   type="text"
                   id="topBarPlacementSelector"
+                  ref={topBarPlacementSelectorRef}
                   dataQA="anchor-placement-input"
                   autoComplete="on"
                   placeholder=".header"
@@ -603,22 +713,38 @@ function DevtoolsPanel() {
                   requirements={
                     placement404Error === true
                       ? ["Element not found, re-enter selector"]
-                      : undefined
+                      : placement404Error === "multi"
+                        ? ["Multiple elements found, using only the first."]
+                        : undefined
                   }
                   onBlur={() => {
-                    const selector = (
-                      document.querySelector(
-                        "#topBarPlacementSelector",
-                      ) as HTMLInputElement
-                    ).value;
+                    const selector = topBarPlacementSelectorRef.current?.value;
 
-                    if (selector.trim() === "") {
+                    if (
+                      selector?.trim() === previousSelectorValue.current?.trim()
+                    ) {
+                      return;
+                    }
+
+                    previousSelectorValue.current = selector?.trim() || null;
+
+                    if (selector?.trim() === "") {
                       setPlacement404Error(null);
                       return;
                     }
 
-                    checkIfSelectorExists(selector, (exists) => {
-                      setPlacement404Error(!exists);
+                    if (placementDropdownRef.current) {
+                      placementDropdownRef.current.value = "";
+                    }
+
+                    checkIfSelectorExists(selector ?? "", (result) => {
+                      if (!result.exists) {
+                        setPlacement404Error(true);
+                      } else if (result.multiple) {
+                        setPlacement404Error("multi");
+                      } else {
+                        setPlacement404Error(false);
+                      }
                     });
                   }}
                   rightIcon={
@@ -626,7 +752,9 @@ function DevtoolsPanel() {
                       ? "CircleAlert"
                       : placement404Error === false
                         ? "SearchCheck"
-                        : "Search" // Default to "Search" when placement404Error is null
+                        : placement404Error === "multi"
+                          ? "CirclePlus"
+                          : "Search"
                   }
                   style={
                     placement404Error === false ? { color: "green" } : undefined
@@ -634,39 +762,21 @@ function DevtoolsPanel() {
                 />
                 <div style={{ width: "250px", display: "block", gap: "10px" }}>
                   <Select
+                    id="placementDropdown"
+                    ref={placementDropdownRef}
                     dataQA="placement-select"
                     helperText=""
-                    id="placementDropdown"
                     labelHtmlFor="anchor-placement-select"
                     name="placement selection"
-                    placeholder="Placement Adjustments"
                     disabled={!elementsQuery.$campaign}
-                    onChange={() => {
-                      const selector = (
-                        document.querySelector(
-                          "#topBarPlacementSelector",
-                        ) as HTMLInputElement
-                      ).value;
-                      const placement = (
-                        document.querySelector(
-                          "#placementDropdown",
-                        ) as HTMLSelectElement
-                      ).value;
-
-                      chrome.tabs
-                        .query({ active: true, lastFocusedWindow: true })
-                        .then((response) => {
-                          const tabId = response[0]?.id;
-                          if (!tabId) return;
-
-                          chrome.scripting.executeScript({
-                            target: { tabId: tabId },
-                            func: updateAnchorPlacement,
-                            args: [selector, placement],
-                          });
-                        });
-                    }}
+                    onChange={handleAnchorPlacementChange}
+                    validation={
+                      placement404Error === true ? "invalid" : undefined
+                    }
                   >
+                    <option value="" disabled selected>
+                      Placement Adjustments
+                    </option>
                     <option value="prepend">Prepend</option>
                     <option value="append">Append</option>
                     <option value="before">Before</option>
