@@ -203,7 +203,7 @@ function DevtoolsPanel() {
   const [rotationAngle, setRotationAngle] = useState(0);
   const topBarPlacementSelectorRef = useRef<HTMLInputElement>(null);
   const placementDropdownRef = useRef<HTMLSelectElement>(null);
-  const previousSelectorValue = useRef<string | null>(null); // Track the previous value of #topBarPlacementSelector
+  const previousSelectorValue = useRef<string | null>(null);
 
   // function handleMessageRequestClick(
   //   requestMsg: () => Promise<string>,
