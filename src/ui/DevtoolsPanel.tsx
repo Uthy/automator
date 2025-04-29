@@ -3,12 +3,16 @@
 import React, { useEffect, useRef, useState } from "react";
 import ReactDOM from "react-dom/client";
 import {
+  Card,
+  Divider,
   Button,
+  Select,
   Input,
   Typography,
   spacingMap,
   Toggle,
   TextArea,
+  IconButton,
 } from "@frontend/wknd-components";
 import { getFixedAndStickySelectors } from "../js/automator";
 import { injectAutomTestEle } from "../js/injectElem";
@@ -16,6 +20,7 @@ import "../css/fonts.scss";
 import "../css/styles.scss";
 import { injectFunctionTest } from "../js/injectFunctionTest";
 import { updateZindex } from "../js/updateZindex";
+import { updateAnchorPlacement } from "../js/anchorAdj";
 const extnTitle: string = chrome.runtime.getManifest().name;
 
 interface RuleObj {
@@ -181,7 +186,7 @@ function DevtoolsPanel() {
   const [backgroundMessage, setBackgroundMessage] = useState("");
   const [devToolsMessage, setDevtoolsMessage] = useState("");
   const [styles, setStyles] = useState({} as any);
-  const [addClone, setAddClone] = useState(true); // set Default checked
+  const [addClone, setAddClone] = useState(true);
   const [addResizeListener, setAddResizeListener] = useState(false);
   // const [buttonText, setButtonText] = useState("Inject Test Topbar");
   const [elementsQuery, setElementsQuery] = useState({} as any);
@@ -189,7 +194,16 @@ function DevtoolsPanel() {
   const zIndexInput = document.getElementById(
     "zIndexInput",
   ) as HTMLInputElement;
-  const [zIndexError, setZIndexError] = useState(false); // State to track if the input is invalid
+  const [zIndexError, setZIndexError] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [placement404Error, setPlacement404Error] = useState<
+    boolean | "multi" | null
+  >(null);
+  const [isRotating, setIsRotating] = useState(false);
+  const [rotationAngle, setRotationAngle] = useState(0);
+  const topBarPlacementSelectorRef = useRef<HTMLInputElement>(null);
+  const placementDropdownRef = useRef<HTMLSelectElement>(null);
+  const previousSelectorValue = useRef<string | null>(null);
 
   // function handleMessageRequestClick(
   //   requestMsg: () => Promise<string>,
@@ -225,13 +239,17 @@ function DevtoolsPanel() {
             if (!$clone) {
               console.log("No clone found");
             } else {
-              $clone.style.display = "block";
+              if ($clone instanceof HTMLElement) {
+                $clone.style.display = "block";
+              }
             }
           } else {
             if (!$clone) {
               console.log("No clone found");
             } else {
-              $clone.style.display = "none";
+              if ($clone instanceof HTMLElement) {
+                $clone.style.display = "none";
+              }
             }
           }
           return {
@@ -264,7 +282,11 @@ function DevtoolsPanel() {
             args: [textareaRef.current?.value || ""],
           });
         } catch (e) {
-          return setErrorMsg(e.message);
+          const errorMessage =
+            e instanceof Error
+              ? e.message
+              : `An unknown error occurred: ${JSON.stringify(e)}`;
+          return setErrorMsg(errorMessage);
         }
       });
   };
@@ -272,13 +294,11 @@ function DevtoolsPanel() {
   const handleRefreshBaseStyles = () => {
     const zIndexValue = zIndexInput?.value || "";
 
-    // Check if the value is empty, clear the error state
     if (zIndexValue.trim() === "") {
       setZIndexError(false);
       return;
     }
 
-    // Check if the value is a valid number, set error state if it's not
     if (isNaN(Number(zIndexValue))) {
       setZIndexError(true);
       return;
@@ -300,7 +320,11 @@ function DevtoolsPanel() {
             args: [zIndexValue],
           });
         } catch (e) {
-          return setErrorMsg(e.message);
+          const errorMessage =
+            e instanceof Error
+              ? e.message
+              : `An unknown error occurred: ${JSON.stringify(e)}`;
+          return setErrorMsg(errorMessage);
         }
       });
   };
@@ -369,8 +393,37 @@ function DevtoolsPanel() {
     setStyles({});
   };
 
-  useEffect(() => {
-    console.log("Devtools Panel mounted");
+  const checkIfSelectorExists = (
+    selector: string,
+    callback: (result: { exists: boolean; multiple: boolean }) => void,
+  ) => {
+    chrome.tabs
+      .query({ active: true, lastFocusedWindow: true })
+      .then((response) => {
+        const tabId = response[0]?.id;
+        if (!tabId) return;
+
+        chrome.scripting
+          .executeScript({
+            target: { tabId: tabId },
+            func: (sel) => {
+              const elements = document.querySelectorAll(sel);
+              return {
+                exists: elements.length > 0,
+                multiple: elements.length > 1,
+              };
+            },
+            args: [selector],
+          })
+          .then((results) => {
+            callback(results[0]?.result || { exists: false, multiple: false });
+          })
+          .catch(() => callback({ exists: false, multiple: false }));
+      });
+  };
+
+  const handleRefreshElementsQuery = () => {
+    setRotationAngle((prevAngle) => prevAngle + 360);
     chrome.scripting.executeScript(
       {
         target: { tabId: chrome.devtools.inspectedWindow.tabId },
@@ -391,105 +444,360 @@ function DevtoolsPanel() {
         setElementsQuery(results[0].result || {});
       },
     );
+  };
+
+  const handleAnchorPlacementChange = () => {
+    const selector = topBarPlacementSelectorRef.current?.value;
+    const placement = placementDropdownRef.current?.value as
+      | "prepend"
+      | "append"
+      | "before"
+      | "after";
+
+    if (!selector) {
+      setErrorMsg("Selector cannot be empty");
+      return;
+    }
+
+    chrome.tabs
+      .query({ active: true, lastFocusedWindow: true })
+      .then((response) => {
+        const tabId = response[0]?.id;
+        if (!tabId) {
+          setErrorMsg("No tab found");
+          return;
+        }
+
+        chrome.scripting
+          .executeScript({
+            target: { tabId: tabId },
+            func: (sel, place) => {
+              function updateAnchorPlacement(
+                selector: string,
+                placement: string,
+              ): void {
+                const targetElement = document.querySelector(
+                  selector,
+                ) as HTMLElement | null;
+                const automatorElement = document.querySelector(
+                  ".bx-automator-test",
+                ) as HTMLElement | null;
+
+                if (!targetElement || !automatorElement) {
+                  console.error(
+                    "Target element or .bx-automator-test element not found",
+                  );
+                  return;
+                }
+
+                if (targetElement === automatorElement) {
+                  console.error(
+                    "Target element and .bx-automator-test element are the same",
+                  );
+                  return;
+                }
+
+                switch (placement) {
+                  case "prepend":
+                    targetElement.prepend(automatorElement);
+                    break;
+                  case "append":
+                    targetElement.append(automatorElement);
+                    break;
+                  case "before":
+                    targetElement.parentNode?.insertBefore(
+                      automatorElement,
+                      targetElement,
+                    );
+                    break;
+                  case "after":
+                    targetElement.parentNode?.insertBefore(
+                      automatorElement,
+                      targetElement.nextSibling,
+                    );
+                    break;
+                  default:
+                    console.error("Invalid placement option");
+                }
+              }
+              updateAnchorPlacement(sel, place);
+            },
+            args: [selector, placement],
+          })
+          .then(() => {
+            setErrorMsg("");
+          })
+          .catch((error) => {
+            console.error("Error executing script:", error);
+            setErrorMsg("Failed to update anchor placement");
+          });
+      });
+  };
+
+  useEffect(() => {
+    console.log("Devtools Panel mounted");
+    handleRefreshElementsQuery();
   }, []);
 
   return (
-    <div style={{ margin: spacingMap.md }}>
+    <div style={{ margin: spacingMap.md, position: "relative" }}>
+      <IconButton
+        variant="primary"
+        dataQA="refresh-elements-query"
+        aria-label="Refresh Elements Query"
+        onClick={handleRefreshElementsQuery}
+        style={{
+          position: "absolute",
+          top: spacingMap.xxs,
+          right: spacingMap.sm,
+          transition: "transform 0.5s linear",
+          transform: `rotate(${rotationAngle}deg)`,
+        }}
+        icon="RotateCw"
+        className={isRotating ? "rotate-icon" : ""}
+      />
+
       <Typography mb={spacingMap.md} variant="displayLarge" dataQA="extn-title">
         {extnTitle}
       </Typography>
 
-      {!styles.css ? (
-        <Button
-          buttonText={"Get Styles"}
-          mt={spacingMap.sm}
-          mb={spacingMap.sm}
-          onClick={handleGetStyles}
-          leftIcon="Wand"
-          variant="primary"
-          dataQA="get-styles"
-          primaryButtonColor="green"
-        />
-      ) : (
-        <Button
-          buttonText={"Clear Styles"}
-          mt={spacingMap.sm}
-          mb={spacingMap.sm}
-          onClick={handleClearStyles}
-          leftIcon="Eraser"
-          variant="primary"
-          dataQA="clear-styles"
-          primaryButtonColor="destructive"
-          style={{ color: "white" }}
-        />
-      )}
-
-      <TextArea
-        dataQA="style-textarea"
-        id="styleTextarea"
-        $resize="both"
-        placeholder="Enter CSS here"
-        mb={spacingMap.xs}
-        rows={10}
-        ref={textareaRef}
-      />
-
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-        }}
-      >
-        <Toggle
-          dataQA="clone-toggle"
-          isActive={addClone}
-          onClick={handleToggleClone}
-          label="Enable Site Pushdown"
+      <Card dataQA={"build-stylesheets-card"} ariaLabel={""}>
+        {!styles.css ? (
+          <Button
+            buttonText={"Get Styles"}
+            mb={spacingMap.sm}
+            onClick={handleGetStyles}
+            leftIcon="Wand"
+            variant="primary"
+            dataQA="get-styles"
+            primaryButtonColor="green"
+            style={{ width: "130px" }}
+          />
+        ) : (
+          <Button
+            buttonText={"Clear Styles"}
+            mb={spacingMap.sm}
+            onClick={handleClearStyles}
+            leftIcon="Eraser"
+            variant="primary"
+            dataQA="clear-styles"
+            primaryButtonColor="destructive"
+            style={{ color: "white", width: "130px" }}
+          />
+        )}
+        <TextArea
+          dataQA="style-textarea"
+          id="styleTextarea"
+          $resize="both"
+          placeholder="Enter CSS here"
+          mb={spacingMap.xs}
+          rows={10}
+          ref={textareaRef}
         />
         <div
           style={{
             display: "flex",
+            justifyContent: "space-between",
             alignItems: "center",
           }}
         >
-          <Input
-            id="zIndexInput"
-            dataQA="z-index-input"
-            autoComplete="on"
-            type="number"
-            placeholder="2147483647"
-            prefix={zIndexError ? "Numbers only: " : "z-index: "}
-            validation={zIndexError ? "invalid" : undefined}
-            rightIcon={zIndexError ? "CircleAlert" : undefined}
-            size={9}
-            disabled={!elementsQuery.$campaign}
-            onChange={handleRefreshBaseStyles}
-          />
+          <div style={{ width: "170px" }}>
+            <Input
+              id="zIndexInput"
+              dataQA="z-index-input"
+              autoComplete="on"
+              type="number"
+              placeholder="2147483647"
+              prefix={zIndexError ? "Numbers only: " : "z-index: "}
+              validation={zIndexError ? "invalid" : undefined}
+              rightIcon={zIndexError ? "CircleAlert" : undefined}
+              disabled={!elementsQuery.$campaign}
+              onChange={handleRefreshBaseStyles}
+            />
+          </div>
+
+          {elementsQuery.$campaign ? (
+            <Button
+              buttonText="Update Pushdown"
+              variant="primary"
+              size="Small"
+              leftIcon="RefreshCcwDot"
+              dataQA="refresh-styles"
+              onClick={handleRefreshStyles}
+            />
+          ) : (
+            <Button
+              buttonText="Inject Test Topbar"
+              variant="primary"
+              leftIcon="Crosshair"
+              dataQA="inject-test-topbar"
+              onClick={() => {
+                handleInjectTestTopbar();
+                handleRefreshStyles();
+              }}
+            />
+          )}
         </div>
+      </Card>
+      <Card
+        dataQA="advanced-settings-card"
+        mt={spacingMap.md}
+        ariaLabel="Advanced Settings Button toggle to expand"
+      >
+        <Button
+          buttonText="Advanced Settings"
+          mt={spacingMap.xxs}
+          mb={spacingMap.xxs}
+          size="Small"
+          onClick={() => setIsExpanded(!isExpanded)}
+          variant="secondary"
+          dataQA={"advanced-settings-btn"}
+          rightIcon={!isExpanded ? "ChevronDown" : "ChevronUp"}
+          style={{ width: "175px" }}
+        />
+        {isExpanded && (
+          <>
+            <Divider
+              dataQA="purpose-selector-divider"
+              m={`${spacingMap.sm} -${spacingMap.sm}`}
+              width="auto"
+            />
+            <Typography
+              mb={spacingMap.xs}
+              variant="headlineSmall"
+              dataQA={"Enable Site Pushdown Headline"}
+            >
+              Enable Site Pushdown
+            </Typography>
+            <Toggle
+              dataQA="clone-toggle"
+              isActive={addClone}
+              onClick={handleToggleClone}
+              label="Add Campaign Clone"
+              disabled={!elementsQuery.$campaign}
+            />
+            <Divider
+              dataQA="purpose-selector-divider"
+              m={`${spacingMap.sm} -${spacingMap.sm}`}
+              width="auto"
+            />
+            <div style={{ marginBottom: spacingMap.sm }}>
+              <Typography
+                mb={spacingMap.xs}
+                variant="headlineSmall"
+                dataQA={"Anchor Placement Adjustment Headline"}
+              >
+                Anchor Placement Adjustment
+              </Typography>
+              <div
+                style={{
+                  display: "flex",
+                  verticalAlign: "top",
+                  gap: "10px",
+                }}
+              >
+                <Input
+                  type="text"
+                  id="topBarPlacementSelector"
+                  ref={topBarPlacementSelectorRef}
+                  dataQA="anchor-placement-input"
+                  autoComplete="on"
+                  placeholder=".header"
+                  prefix="Placement Selector: ( '"
+                  suffix="' )"
+                  disabled={!elementsQuery.$campaign}
+                  size={12}
+                  validation={
+                    placement404Error === true ? "invalid" : undefined
+                  }
+                  requirements={
+                    placement404Error === true
+                      ? ["Element not found, re-enter selector"]
+                      : placement404Error === "multi"
+                        ? ["Multiple elements found, using only the first."]
+                        : undefined
+                  }
+                  onBlur={() => {
+                    const selector = topBarPlacementSelectorRef.current?.value;
 
-        {elementsQuery.$campaign ? (
-          <Button
-            buttonText="Update Pushdown"
-            variant="primary"
-            leftIcon="RefreshCcwDot"
-            dataQA="refresh-styles"
-            onClick={handleRefreshStyles}
-          />
-        ) : (
-          <Button
-            buttonText="Inject Test Topbar"
-            variant="primary"
-            leftIcon="Crosshair"
-            dataQA="inject-test-topbar"
-            onClick={handleInjectTestTopbar}
-          />
+                    if (
+                      selector?.trim() === previousSelectorValue.current?.trim()
+                    ) {
+                      return;
+                    }
+
+                    previousSelectorValue.current = selector?.trim() || null;
+
+                    if (selector?.trim() === "") {
+                      setPlacement404Error(null);
+                      return;
+                    }
+
+                    if (placementDropdownRef.current) {
+                      placementDropdownRef.current.value = "";
+                    }
+
+                    checkIfSelectorExists(selector ?? "", (result) => {
+                      if (!result.exists) {
+                        setPlacement404Error(true);
+                      } else if (result.multiple) {
+                        setPlacement404Error("multi");
+                      } else {
+                        setPlacement404Error(false);
+                      }
+                    });
+                  }}
+                  rightIcon={
+                    placement404Error === true
+                      ? "CircleAlert"
+                      : placement404Error === false
+                        ? "SearchCheck"
+                        : placement404Error === "multi"
+                          ? "CirclePlus"
+                          : "Search"
+                  }
+                  style={
+                    placement404Error === false ? { color: "green" } : undefined
+                  }
+                />
+                <div style={{ width: "250px", display: "block", gap: "10px" }}>
+                  <Select
+                    id="placementDropdown"
+                    ref={placementDropdownRef}
+                    dataQA="placement-select"
+                    helperText=""
+                    labelHtmlFor="anchor-placement-select"
+                    name="placement selection"
+                    disabled={!elementsQuery.$campaign}
+                    onChange={handleAnchorPlacementChange}
+                    validation={
+                      placement404Error === true ? "invalid" : undefined
+                    }
+                  >
+                    <option value="" disabled selected>
+                      Placement Adjustments
+                    </option>
+                    <option value="prepend">Prepend</option>
+                    <option value="append">Append</option>
+                    <option value="before">Before</option>
+                    <option value="after">After</option>
+                  </Select>
+                </div>
+              </div>
+            </div>
+          </>
         )}
-      </div>
+      </Card>
 
-      <Typography variant="bodyCopy">{devToolsMessage}</Typography>
-      <Typography variant="bodyCopy">{backgroundMessage}</Typography>
-      <Typography variant="bodyCopy">{errorMsg}</Typography>
+      <Typography variant="bodyCopy" dataQA={"devtoolsMessage"}>
+        {devToolsMessage}
+      </Typography>
+      <Typography variant="bodyCopy" dataQA={"backgroundMessage"}>
+        {backgroundMessage}
+      </Typography>
+      <Typography variant="bodyCopy" dataQA={"errorMsg"}>
+        {errorMsg}
+      </Typography>
     </div>
   );
 }
